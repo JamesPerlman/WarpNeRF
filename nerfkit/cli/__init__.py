@@ -1,12 +1,14 @@
 from dataclasses import dataclass
 from pathlib import Path
+from threading import Thread
 import subprocess as sp
+import time
 import tyro
 
 def run_reality_capture(input: Path, output: Path):
     """ Perform Structure from Motion using RealityCapture. """
     
-    rc_path = Path("C:/Program Files/Epic Games/RealityCapture/AppProxy.exe")
+    rc_path = Path("C:/Program Files/Capturing Reality/RealityCapture/RealityCapture.exe")
 
     input_images_path = input
     output_project_path = output
@@ -18,7 +20,7 @@ def run_reality_capture(input: Path, output: Path):
     output_project_path.mkdir(parents=True, exist_ok=True)
     output_undistorted_images_path.mkdir(parents=True, exist_ok=True)
 
-    cmd = [
+    rc_cmd = [
         str(rc_path),
         "-headless",
         "-newScene",
@@ -29,7 +31,20 @@ def run_reality_capture(input: Path, output: Path):
         "-quit"
     ]
 
-    sp.run(cmd, check=True)
+    rc_proc = sp.Popen(rc_cmd, stdout=sp.PIPE, stderr=sp.PIPE, text=True)
+
+    # Read and print each line of output
+    while rc_proc.poll() is None:
+        out = rc_proc.stdout.read(1)
+        if out:
+            print(out.decode("utf-8"), end="")
+
+    # check for any remaining output
+    out, err = rc_proc.communicate()
+
+    if err:
+        print(err.decode("utf-8"))
+
 
 def main():
     tyro.extras.subcommand_cli_from_dict(
@@ -38,3 +53,5 @@ def main():
             "train": None,
         }
     )
+
+# nk sfm --input /e/2022/nerf-library/testdata/lego/train/ --output /e/nerfs/test/dozer/
