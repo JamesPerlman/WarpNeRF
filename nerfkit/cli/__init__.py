@@ -53,5 +53,3 @@ def main():
             "train": None,
         }
     )
-
-# nk sfm --input /e/2022/nerf-library/testdata/lego/train/ --output /e/nerfs/test/dozer/
