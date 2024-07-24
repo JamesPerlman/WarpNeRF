@@ -5,6 +5,8 @@ import subprocess as sp
 import time
 import tyro
 
+from nerfkit.utils.bundler_sfm import read_bundler_sfm_data
+
 def run_reality_capture(input: Path, output: Path):
     """ Perform Structure from Motion using RealityCapture. """
     
@@ -14,11 +16,9 @@ def run_reality_capture(input: Path, output: Path):
     output_project_path = output
 
     output_registration_path = output_project_path / "registration.out"
-    output_undistorted_images_path = output_project_path / "undistorted_images"
     output_sparse_point_cloud_path = output_project_path / "sparse_point_cloud.ply"
 
     output_project_path.mkdir(parents=True, exist_ok=True)
-    output_undistorted_images_path.mkdir(parents=True, exist_ok=True)
 
     rc_cmd = [
         str(rc_path),
@@ -46,10 +46,14 @@ def run_reality_capture(input: Path, output: Path):
         print(err.decode("utf-8"))
 
 
+def open_bundler_file(path: Path):
+    data = read_bundler_sfm_data(path)
+
 def main():
     tyro.extras.subcommand_cli_from_dict(
         {
             "sfm": run_reality_capture,
             "train": None,
+            "open": open_bundler_file
         }
     )
