@@ -3,7 +3,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='NeRFKit',
+    name='WarpNeRF',
     version='0.1',
     packages=find_packages(),
     include_package_data=True,
@@ -12,6 +12,6 @@ setup(
     ],
     entry_points='''
         [console_scripts]
-        nk=nerfkit.cli:main
+        wn=warpnerf.cli:main
     ''',
 )

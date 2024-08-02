@@ -1,11 +1,7 @@
-from dataclasses import dataclass
-from pathlib import Path
-from threading import Thread
 import subprocess as sp
-import time
-import tyro
 
-from nerfkit.utils.bundler_sfm import read_bundler_sfm_data
+from warpnerf.utils import config_utils
+from pathlib import Path
 
 def run_reality_capture(input: Path, output: Path):
     """ Perform Structure from Motion using RealityCapture. """
@@ -15,7 +11,8 @@ def run_reality_capture(input: Path, output: Path):
     input_images_path = input
     output_project_path = output
 
-    output_registration_path = output_project_path / "registration.out"
+    output_bundler_path = output_project_path / "registration.out"
+    output_images_list_path = output_project_path / "images.lst"
     output_sparse_point_cloud_path = output_project_path / "sparse_point_cloud.ply"
 
     output_project_path.mkdir(parents=True, exist_ok=True)
@@ -23,12 +20,13 @@ def run_reality_capture(input: Path, output: Path):
     rc_cmd = [
         str(rc_path),
         "-headless",
+        "-set", '"appQuitOnError=true"',
         "-newScene",
         "-addFolder", str(input_images_path),
         "-align",
-        "-exportRegistration", str(output_registration_path),
+        "-exportRegistration", str(output_bundler_path), config_utils.RC_EXPORT_BUNDLER_XML_PATH,
+        "-exportRegistration", str(output_images_list_path), config_utils.RC_EXPORT_IMAGELIST_XML_PATH,
         "-exportSparsePointCloud", str(output_sparse_point_cloud_path),
-        "-quit"
     ]
 
     rc_proc = sp.Popen(rc_cmd, stdout=sp.PIPE, stderr=sp.PIPE, text=True)
@@ -44,16 +42,3 @@ def run_reality_capture(input: Path, output: Path):
 
     if err:
         print(err.decode("utf-8"))
-
-
-def open_bundler_file(path: Path):
-    data = read_bundler_sfm_data(path)
-
-def main():
-    tyro.extras.subcommand_cli_from_dict(
-        {
-            "sfm": run_reality_capture,
-            "train": None,
-            "open": open_bundler_file
-        }
-    )
