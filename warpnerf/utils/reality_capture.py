@@ -1,6 +1,6 @@
 import subprocess as sp
 
-from warpnerf.utils import config_utils
+from warpnerf.utils import config
 from pathlib import Path
 
 def run_reality_capture(input: Path, output: Path):
@@ -24,8 +24,8 @@ def run_reality_capture(input: Path, output: Path):
         "-newScene",
         "-addFolder", str(input_images_path),
         "-align",
-        "-exportRegistration", str(output_bundler_path), config_utils.RC_EXPORT_BUNDLER_XML_PATH,
-        "-exportRegistration", str(output_images_list_path), config_utils.RC_EXPORT_IMAGELIST_XML_PATH,
+        "-exportRegistration", str(output_bundler_path), config.RC_EXPORT_BUNDLER_XML_PATH,
+        "-exportRegistration", str(output_images_list_path), config.RC_EXPORT_IMAGELIST_XML_PATH,
         "-exportSparsePointCloud", str(output_sparse_point_cloud_path),
     ]
 

@@ -2,7 +2,7 @@ from pathlib import Path
 import tyro
 
 from warpnerf.utils.bundler_sfm import read_bundler_sfm_data
-from warpnerf.utils.reality_capture_utils import run_reality_capture
+from warpnerf.utils.reality_capture import run_reality_capture
 
 
 def open_bundler_file(path: Path):

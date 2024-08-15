@@ -8,7 +8,14 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
+        'torch',
+        'torchvision',
+        'torchaudio',
         'tyro',
+        'warp',
+    ],
+    dependency_links=[
+        'https://download.pytorch.org/whl/cu124',
     ],
     entry_points='''
         [console_scripts]
