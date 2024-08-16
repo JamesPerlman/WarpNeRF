@@ -12,7 +12,7 @@ setup(
         'torchvision',
         'torchaudio',
         'tyro',
-        'warp',
+        'warp-lang',
     ],
     dependency_links=[
         'https://download.pytorch.org/whl/cu124',
