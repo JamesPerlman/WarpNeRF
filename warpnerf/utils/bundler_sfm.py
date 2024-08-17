@@ -25,7 +25,7 @@ class BundlerSFMData:
     points: List[BundlerSFMPointData]
 
 
-def read_bundler_sfm_data(path: Path, read_points: bool = False) -> BundlerSFMData:
+def create_bundler_sfm_data_from_path(path: Path, read_points: bool = False) -> BundlerSFMData:
     with path.open("r") as file:
         data = BundlerSFMData()
 
