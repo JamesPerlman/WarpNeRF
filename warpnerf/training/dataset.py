@@ -31,14 +31,14 @@ class Dataset:
             return
 
         self.bundler_data = create_bundler_sfm_data_from_path(self.path / "registration.out", read_points=False)
-        self.image_paths = get_image_paths_from_lst(self.path / "images.lst")
 
-        assert(len(self.bundler_data.cameras) == len(self.image_paths), "Number of cameras and images do not match")
+        # images are named "00000.png", "00001.png", etc.
+        self.image_paths = [self.path / f"{i:05d}.png" for i in range(len(self.bundler_data.cameras))]
 
         self.training_cameras = []
         for bundler_camera_data, image_path in zip(self.bundler_data.cameras, self.image_paths):
             camera_data = create_camera_data_from_bundler(bundler_camera_data)
             training_camera = TrainingCamera(camera_data, image_path)
             self.training_cameras.append(training_camera)
-
+            
     
