@@ -1,5 +1,5 @@
 <Configuration id="{2D5793BC-A65D-4318-A1B9-A05044608385}">
-  <entry key="calexUndistResMode" value="2"/>
+  <entry key="calexUndistResMode" value="0"/>
   <entry key="calexTrans" value="1"/>
   <entry key="calexUndistortNaming" value="1"/>
   <entry key="calexUndistortPixelFormat" value="32bppBGRA"/>
