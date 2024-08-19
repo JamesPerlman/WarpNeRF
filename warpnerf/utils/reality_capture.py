@@ -24,7 +24,7 @@ def run_reality_capture(input: Path, output: Path):
         "-addFolder", str(input_images_path),
         "-align",
         "-exportRegistration", str(output_bundler_path), config.RC_EXPORT_BUNDLER_XML_PATH,
-        "-exportSparsePointCloud", str(output_sparse_point_cloud_path),
+        # "-exportSparsePointCloud", str(output_sparse_point_cloud_path),
         "-quit",
     ]
 
