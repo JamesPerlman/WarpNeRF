@@ -1,3 +1,4 @@
+import numpy as np
 import warp as wp
 
 from pathlib import Path
@@ -30,8 +31,5 @@ class TrainingCamera:
         self.camera_data = camera_data
         self.image_path = image_path
 
-    @property
-    def image(self) -> wp.array3d(dtype=wp.float32):
-        if not hasattr(self, "_image"):
-            self._image = load_image(self.image_path)
-        return self._image
+    def get_image(self) -> wp.array3d(dtype=wp.uint8):
+        return load_image(self.image_path)

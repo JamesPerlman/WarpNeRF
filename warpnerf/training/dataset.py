@@ -1,8 +1,12 @@
+import warp as wp
+
 from pathlib import Path
 from typing import List
 
-from warpnerf.models.camera import TrainingCamera, create_camera_data_from_bundler
+from warpnerf.kernels.image import copy_image_rgba_to_planar_kernel
+from warpnerf.models.camera import CameraData, TrainingCamera, create_camera_data_from_bundler
 from warpnerf.utils.bundler_sfm import BundlerSFMData, create_bundler_sfm_data_from_path
+from warpnerf.utils.image import save_image
 
 def get_image_paths_from_lst(path: Path) -> List[Path]:
     with path.open("r") as f:
@@ -24,6 +28,41 @@ class Dataset:
     @property
     def num_cameras(self) -> int:
         return len(self.training_cameras)
+    
+    @property
+    def camera_data(self) -> wp.array1d(dtype=CameraData):
+        if hasattr(self, "_camera_data"):
+            return self._camera_data
+        
+        cpu_cams = [camera.camera_data for camera in self.training_cameras]
+        self._camera_data = wp.array(cpu_cams, dtype=CameraData, device="cuda")
+        return self._camera_data
+    
+    @property
+    def image_data(self) -> wp.array2d(dtype=wp.float32):
+        if hasattr(self, "_image_data"):
+            return self._image_data
+        
+        first_image = self.training_cameras[0].get_image()
+        img_w, img_h = first_image.shape[1:]
+        n_images = len(self.training_cameras)
+
+        self._image_data = wp.array(
+            shape=(n_images, 4, img_w, img_h),
+            dtype=wp.uint8,
+            device="cuda",
+        )
+
+        for i, camera in enumerate(self.training_cameras):
+            if i >= n_images:
+                break
+            image = camera.get_image()
+            wp.copy(self._image_data, image, i * 4 * img_w * img_h)
+            print(f"Loaded image {i+1}/{len(self.training_cameras)}")
+
+        wp.synchronize()
+
+        return self._image_data
 
     def load(self):
 
