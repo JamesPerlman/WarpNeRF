@@ -39,7 +39,7 @@ class Dataset:
         return self._camera_data
     
     @property
-    def image_data(self) -> wp.array2d(dtype=wp.float32):
+    def image_data(self) -> wp.array4d(dtype=wp.float32):
         if hasattr(self, "_image_data"):
             return self._image_data
         
