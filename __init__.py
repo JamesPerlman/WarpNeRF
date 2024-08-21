@@ -4,6 +4,8 @@ import numpy as np
 
 from pathlib import Path
 
+from warpnerf.models.batch import RayBatch, create_ray_batch
+from warpnerf.training.batcher import init_training_rays_and_pixels_kernel
 from warpnerf.training.dataset import Dataset
 from warpnerf.utils.image import save_image
 
@@ -44,21 +46,20 @@ p = wp.vec3f(2.5, 2.5, 3.5)
 
 print(c)
 
-dataset = Dataset(path=Path("E:\\nerfs\\test\\sara3"))
+dataset = Dataset(path=Path("E:\\nerfs\\test\\turb1"))
 dataset.load()
 
-print(dataset.num_cameras)
+ray_batch = create_ray_batch(count=1000)
+rgba_batch = wp.empty((4, 1000), dtype=wp.uint8, device="cuda")
 
-img = dataset.training_cameras[0].image
+random_seed = 1337
+wp.launch(
+    init_training_rays_and_pixels_kernel,
+    dim=1000,
+    inputs=[random_seed, dataset.num_images, dataset.image_dims, dataset.camera_data, dataset.image_data],
+    outputs=[ray_batch, rgba_batch],
+)
 
-@wp.kernel
-def img_invert_kernel(img: wp.array3d(dtype=wp.float32), result: wp.array3d(dtype=wp.float32)):
-    i, j = wp.tid()
-    result[i][j][0] = 1.0 - img[i][j][0]
-    result[i][j][1] = 1.0 - img[i][j][1]
-    result[i][j][2] = 1.0 - img[i][j][2]
-    
-result = wp.ones_like(img)
-wp.launch(img_invert_kernel, dim=(img.shape[0], img.shape[1]), inputs=[img], outputs=[result], device="cuda")
-
-save_image(result, Path("E:\\nerfs\\test\\test.png"))
+wp.synchronize()
+print(ray_batch.ori)
+print(rgba_batch)
