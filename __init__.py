@@ -61,5 +61,5 @@ wp.launch(
 )
 
 wp.synchronize()
-print(ray_batch.ori)
+print(ray_batch.ray)
 print(rgba_batch)

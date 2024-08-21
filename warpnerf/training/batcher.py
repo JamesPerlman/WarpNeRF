@@ -30,16 +30,13 @@ def init_training_rays_and_pixels_kernel(
     pixel_x = rand_pixel_idx % img_w
     pixel_y = rand_pixel_idx // img_w
 
-    global_ray = get_global_ray_at_pixel_xy(cams_in[image_idx], img_w, img_h, pixel_x, pixel_y, 0.0)
-
     rgba_out[0][i] = rgba_in[image_idx][0][pixel_x][pixel_y]
     rgba_out[1][i] = rgba_in[image_idx][1][pixel_x][pixel_y]
     rgba_out[2][i] = rgba_in[image_idx][2][pixel_x][pixel_y]
     rgba_out[3][i] = rgba_in[image_idx][3][pixel_x][pixel_y]
 
+    rays_out.ray[i] = get_global_ray_at_pixel_xy(cams_in[image_idx], img_w, img_h, pixel_x, pixel_y, 0.0)
     rays_out.alive[i] = True
-    rays_out.ori[i] = global_ray.ori
-    rays_out.dir[i] = global_ray.dir
     rays_out.t[i] = 0.0
 
 # class Batcher:
