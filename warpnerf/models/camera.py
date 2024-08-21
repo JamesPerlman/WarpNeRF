@@ -3,7 +3,7 @@ import warp as wp
 
 from pathlib import Path
 from warpnerf.utils.bundler_sfm import BundlerSFMCameraData
-from warpnerf.utils.image import load_image
+from warpnerf.utils.image import get_image_dims, load_image
 
 @wp.struct
 class CameraData:
@@ -33,3 +33,6 @@ class TrainingCamera:
 
     def get_image(self) -> wp.array3d(dtype=wp.uint8):
         return load_image(self.image_path)
+
+    def get_image_dims(self) -> tuple[int, int]:
+        return get_image_dims(self.image_path)

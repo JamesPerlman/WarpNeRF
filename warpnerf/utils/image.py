@@ -7,6 +7,11 @@ import numpy as np
 def is_image(path: Path) -> bool:
     return path.suffix.lower() in [".jpg", ".jpeg", ".png", ".bmp", ".tiff"]
 
+def get_image_dims(path: Path) -> tuple[int, int]:
+    assert is_image(path), f"{path} is not an image file"
+    img = Image.open(path)
+    return img.size
+
 # loads an image in planar format (rrr, ggg, bbb, aaa)
 def load_image(path: Path) -> wp.array3d(dtype=wp.uint8):
     assert is_image(path), f"{path} is not an image file"

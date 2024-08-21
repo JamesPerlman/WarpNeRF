@@ -25,10 +25,26 @@ class Dataset:
     
     @property
     def num_cameras(self) -> int:
+        assert self.is_loaded, "Dataset not loaded"
         return len(self.training_cameras)
     
     @property
+    def num_images(self) -> int:
+        return self.num_cameras
+    
+    @property
+    def image_dims(self) -> tuple[int, int]:
+        assert self.is_loaded, "Dataset not loaded"
+        
+        if not hasattr(self, "_image_dims"):
+            self._image_dims = self.training_cameras[0].get_image_dims()
+        
+        return self._image_dims
+    
+    @property
     def camera_data(self) -> wp.array1d(dtype=CameraData):
+        assert self.is_loaded, "Dataset not loaded"
+
         if hasattr(self, "_camera_data"):
             return self._camera_data
         
@@ -38,12 +54,14 @@ class Dataset:
     
     @property
     def image_data(self) -> wp.array4d(dtype=wp.float32):
+        assert self.is_loaded, "Dataset not loaded"
+
         if hasattr(self, "_image_data"):
             return self._image_data
         
         first_image = self.training_cameras[0].get_image()
         img_w, img_h = first_image.shape[1:]
-        n_images = len(self.training_cameras)
+        n_images = 10#len(self.training_cameras)
 
         self._image_data = wp.array(
             shape=(n_images, 4, img_w, img_h),
@@ -77,5 +95,4 @@ class Dataset:
             camera_data = create_camera_data_from_bundler(bundler_camera_data)
             training_camera = TrainingCamera(camera_data, image_path)
             self.training_cameras.append(training_camera)
-            
     
