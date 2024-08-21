@@ -61,7 +61,7 @@ class Dataset:
         
         first_image = self.training_cameras[0].get_image()
         img_w, img_h = first_image.shape[1:]
-        n_images = 10#len(self.training_cameras)
+        n_images = len(self.training_cameras)
 
         self._image_data = wp.array(
             shape=(n_images, 4, img_w, img_h),
@@ -70,8 +70,6 @@ class Dataset:
         )
 
         for i, camera in enumerate(self.training_cameras):
-            if i >= n_images:
-                break
             image = camera.get_image()
             wp.copy(self._image_data, image, i * 4 * img_w * img_h)
             print(f"Loaded image {i+1}/{len(self.training_cameras)}")
