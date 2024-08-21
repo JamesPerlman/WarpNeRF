@@ -22,6 +22,8 @@ def create_ray_batch(count: int) -> RayBatch:
     batch.dir = wp.zeros(shape=(count), dtype=wp.vec3f)
     batch.t = wp.zeros(shape=(count), dtype=wp.float32)
 
+    return batch
+
 @wp.struct
 class SampleBatch:
     xyz: wp.array1d(dtype=wp.vec3f)
