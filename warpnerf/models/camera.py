@@ -32,7 +32,7 @@ class TrainingCamera:
         self.image_path = image_path
 
     def get_image(self) -> wp.array3d(dtype=wp.uint8):
-        return load_image(self.image_path)
+        return  wp.from_numpy(load_image(self.image_path), dtype=wp.uint8, device="cuda")
 
     def get_image_dims(self) -> tuple[int, int]:
         return get_image_dims(self.image_path)
