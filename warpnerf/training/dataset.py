@@ -5,10 +5,24 @@ from typing import List
 
 from warpnerf.models.camera import CameraData, TrainingCamera, create_camera_data_from_bundler
 from warpnerf.utils.bundler_sfm import BundlerSFMData, create_bundler_sfm_data_from_path
+from warpnerf.utils.image import save_image
 
 def get_image_paths_from_lst(path: Path) -> List[Path]:
     with path.open("r") as f:
         return [path.parent / Path(line.strip()) for line in f.readlines()]
+
+@wp.kernel
+def copy_and_transpose_image_data_kernel(
+    rgba_in: wp.array3d(dtype=wp.uint8),
+    img_index: wp.int32,
+    rgba_out: wp.array4d(dtype=wp.uint8),
+):
+    i, j = wp.tid()
+    
+    rgba_out[img_index][0][i][j] = rgba_in[j][i][0]
+    rgba_out[img_index][1][i][j] = rgba_in[j][i][1]
+    rgba_out[img_index][2][i][j] = rgba_in[j][i][2]
+    rgba_out[img_index][3][i][j] = rgba_in[j][i][3]
 
 class Dataset:
     
@@ -60,7 +74,7 @@ class Dataset:
             return self._image_data
         
         first_image = self.training_cameras[0].get_image()
-        img_w, img_h = first_image.shape[1:]
+        img_h, img_w = first_image.shape[:2]
         n_images = len(self.training_cameras)
 
         self._image_data = wp.array(
@@ -71,10 +85,13 @@ class Dataset:
 
         for i, camera in enumerate(self.training_cameras):
             image = camera.get_image()
-            wp.copy(self._image_data, image, i * 4 * img_w * img_h)
+            wp.launch(
+                copy_and_transpose_image_data_kernel,
+                dim=(img_w, img_h),
+                inputs=[image, i],
+                outputs=[self._image_data],
+            )
             print(f"Loaded image {i+1}/{len(self.training_cameras)}")
-
-        wp.synchronize()
 
         return self._image_data
 
