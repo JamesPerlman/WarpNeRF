@@ -18,8 +18,16 @@ def create_camera_data_from_bundler(data: BundlerSFMCameraData) -> CameraData:
     cam.f = data.f
     cam.k1 = data.k1
     cam.k2 = data.k2
-    cam.R = wp.mat33f(data.R)
-    cam.t = wp.mul(wp.neg(wp.transpose(cam.R)), wp.vec3f(data.t))
+    R = wp.transpose(wp.mat33f(data.R))
+    t = wp.vec3f(data.t)
+    # adjustment matrix to convert from bundler to warpnerf coordinate system
+    M = wp.mat33f(
+        [[1, 0, 0],
+        [0, -1, 0],
+        [0, 0, -1]]
+    )
+    cam.R = wp.mul(R, M)
+    cam.t = wp.mul(wp.neg(R), t)
     return cam
 
 class TrainingCamera:
