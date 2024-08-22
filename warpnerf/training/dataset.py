@@ -84,7 +84,7 @@ class Dataset:
         )
 
         for i, camera in enumerate(self.training_cameras):
-            image = camera.get_image()
+            image = wp.from_numpy(camera.get_image(), dtype=wp.uint8, device="cuda")
             wp.launch(
                 copy_and_transpose_image_data_kernel,
                 dim=(img_w, img_h),
