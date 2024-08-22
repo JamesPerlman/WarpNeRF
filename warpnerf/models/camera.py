@@ -19,7 +19,7 @@ def create_camera_data_from_bundler(data: BundlerSFMCameraData) -> CameraData:
     cam.k1 = data.k1
     cam.k2 = data.k2
     cam.R = wp.mat33f(data.R)
-    cam.t = wp.vec3f(data.t)
+    cam.t = wp.mul(wp.neg(wp.transpose(cam.R)), wp.vec3f(data.t))
     return cam
 
 class TrainingCamera:
@@ -32,7 +32,7 @@ class TrainingCamera:
         self.image_path = image_path
 
     def get_image(self) -> wp.array3d(dtype=wp.uint8):
-        return  wp.from_numpy(load_image(self.image_path), dtype=wp.uint8, device="cuda")
+        return  load_image(self.image_path)
 
     def get_image_dims(self) -> tuple[int, int]:
         return get_image_dims(self.image_path)
