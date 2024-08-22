@@ -12,6 +12,7 @@ setup(
         'torchvision',
         'torchaudio',
         'tyro',
+        'viser',
         'warp-lang',
     ],
     dependency_links=[
