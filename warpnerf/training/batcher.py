@@ -39,5 +39,6 @@ def init_training_rays_and_pixels_kernel(
     rays_out.alive[i] = True
     rays_out.t[i] = 0.0
 
+
 # class Batcher:
     
