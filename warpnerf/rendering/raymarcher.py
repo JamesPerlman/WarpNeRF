@@ -2,6 +2,7 @@ import torch
 import warp as wp
 
 from warpnerf.models.batch import RayBatch, SampleBatch
+import fvdb
 
 @wp.struct
 class RaymarcherOptions:

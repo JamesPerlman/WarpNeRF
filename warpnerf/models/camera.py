@@ -2,8 +2,10 @@ import numpy as np
 import warp as wp
 
 from pathlib import Path
+from warpnerf.models.bounding_box import BoundingBox, create_bounding_box
 from warpnerf.utils.bundler_sfm import BundlerSFMCameraData
 from warpnerf.utils.image import get_image_dims, load_image
+from warpnerf.utils.math import vec3f_cwise_max, vec3f_cwise_min
 
 @wp.struct
 class CameraData:
@@ -44,3 +46,14 @@ class TrainingCamera:
 
     def get_image_dims(self) -> tuple[int, int]:
         return get_image_dims(self.image_path)
+
+@wp.func
+def get_scene_bounding_box(cameras: wp.array1d(dtype=CameraData)) -> BoundingBox:
+    min = wp.vec3f([np.inf, np.inf, np.inf])
+    max = wp.vec3f([-np.inf, -np.inf, -np.inf])
+
+    for camera in cameras:
+        min = vec3f_cwise_min(min, camera.t)
+        max = vec3f_cwise_max(max, camera.t)
+
+    return create_bounding_box(min, max)
