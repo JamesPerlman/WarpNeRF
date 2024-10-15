@@ -1,9 +1,12 @@
+import numpy as np
 import warp as wp
 
 from pathlib import Path
 from typing import List
 
+from warpnerf.models.batch import RayBatch, create_ray_batch
 from warpnerf.models.camera import CameraData, TrainingCamera, create_camera_data_from_bundler
+from warpnerf.training.batcher import init_training_rays_and_pixels_kernel
 from warpnerf.utils.bundler_sfm import BundlerSFMData, create_bundler_sfm_data_from_path
 from warpnerf.utils.image import save_image
 
@@ -72,13 +75,11 @@ class Dataset:
 
         if hasattr(self, "_image_data"):
             return self._image_data
-        
-        first_image = self.training_cameras[0].get_image()
-        img_h, img_w = first_image.shape[:2]
-        n_images = len(self.training_cameras)
 
+        img_w, img_h = self.image_dims
+        
         self._image_data = wp.array(
-            shape=(n_images, 4, img_w, img_h),
+            shape=(self.num_images, 4, img_w, img_h),
             dtype=wp.uint8,
             device="cuda",
         )
@@ -110,4 +111,29 @@ class Dataset:
             camera_data = create_camera_data_from_bundler(bundler_camera_data)
             training_camera = TrainingCamera(camera_data, image_path)
             self.training_cameras.append(training_camera)
-    
+        
+
+    def get_batch(self, n_rays: int, random_seed: wp.int32, device: str = "cuda") -> tuple[RayBatch, wp.array(dtype=wp.vec4f)]:
+        assert self.is_loaded, "Dataset not loaded"
+
+        batch = create_ray_batch(n_rays, device=device)
+        rgba = wp.empty(shape=(4, n_rays), dtype=wp.uint8, device=device)
+
+        wp.launch(
+            init_training_rays_and_pixels_kernel,
+            dim=(n_rays,),
+            inputs=[
+                random_seed,
+                self.num_images,
+                self.image_dims,
+                self.camera_data,
+                self.image_data,
+            ],
+            outputs=[
+                batch,
+                rgba
+            ],
+            device=device,
+        )
+
+        return batch, rgba

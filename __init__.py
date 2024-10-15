@@ -16,18 +16,12 @@ wp.init()
 dataset = Dataset(path=Path("/home/luks/james/nerfs/turb-small"))
 dataset.load()
 
-ray_batch = create_ray_batch(count=1000)
-rgba_batch = wp.empty((4, 1000), dtype=wp.uint8, device="cuda")
-
-random_seed = 1337
-wp.launch(
-    init_training_rays_and_pixels_kernel,
-    dim=1000,
-    inputs=[random_seed, dataset.num_images, dataset.image_dims, dataset.camera_data, dataset.image_data],
-    outputs=[ray_batch, rgba_batch],
-)
+random_seed = 1336
+rays, rgba = dataset.get_batch(n_rays=1000, random_seed=random_seed)
 
 wp.synchronize()
+
+print(rgba)
 
 # server = VisualizationServer()
 # server.set_dataset(dataset)
