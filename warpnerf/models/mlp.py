@@ -1,7 +1,15 @@
 import torch.nn as nn
 
 class MLP(nn.Module):
-    def __init__(self, input_dim: int, hidden_dim: int, output_dim: int, n_hidden_layers: int, activation=nn.ReLU):
+    def __init__(
+            self,
+            input_dim: int,
+            hidden_dim: int,
+            output_dim: int,
+            n_hidden_layers: int,
+            activation=nn.ReLU,
+            output_activation=None
+        ):
         super().__init__()
 
         self.input_layer = nn.Linear(input_dim, hidden_dim)
@@ -10,6 +18,7 @@ class MLP(nn.Module):
         ])
         self.output_layer = nn.Linear(hidden_dim, output_dim)
         self.activation = activation()
+        self.output_activation = output_activation() if output_activation is not None else None
 
     def forward(self, x):
         x = self.input_layer(x)
@@ -19,4 +28,9 @@ class MLP(nn.Module):
             x = hidden_layer(x)
             x = self.activation(x)
 
-        return self.output_layer(x)
+        x = self.output_layer(x)
+
+        if self.output_activation is not None:
+            x = self.output_activation(x)
+        
+        return x
