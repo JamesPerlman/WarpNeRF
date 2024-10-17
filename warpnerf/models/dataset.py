@@ -111,7 +111,6 @@ class Dataset:
             camera_data = create_camera_data_from_bundler(bundler_camera_data)
             training_camera = TrainingCamera(camera_data, image_path)
             self.training_cameras.append(training_camera)
-        
 
     def get_batch(self, n_rays: int, random_seed: wp.int32, device: str = "cuda") -> tuple[RayBatch, wp.array(dtype=wp.vec4f)]:
         assert self.is_loaded, "Dataset not loaded"
