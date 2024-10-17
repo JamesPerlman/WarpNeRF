@@ -1,3 +1,4 @@
+import fvdb
 import warp as wp
 
 @wp.struct
@@ -8,7 +9,8 @@ class Ray:
 @wp.struct
 class RayBatch:
     count: wp.int32
-    ray: wp.array1d(dtype=Ray)
+    dir: wp.array1d(dtype=wp.vec3f)
+    ori: wp.array1d(dtype=wp.vec3f)
     alive: wp.array1d(dtype=wp.bool)
     t: wp.array1d(dtype=wp.float32)
 
@@ -16,7 +18,8 @@ def create_ray_batch(count: int, device: str = "cuda") -> RayBatch:
     batch = RayBatch()
     
     batch.count = count
-    batch.ray = wp.empty(shape=(count), dtype=Ray, device=device)
+    batch.dir = wp.empty(shape=(count), dtype=wp.vec3f, device=device)
+    batch.ori = wp.empty(shape=(count), dtype=wp.vec3f, device=device)
     batch.alive = wp.zeros(shape=(count), dtype=wp.bool, device=device)
     batch.t = wp.zeros(shape=(count), dtype=wp.float32, device=device)
 
@@ -24,5 +27,7 @@ def create_ray_batch(count: int, device: str = "cuda") -> RayBatch:
 
 @wp.struct
 class SampleBatch:
+    t: wp.array1d(dtype=wp.float32)
+    dt: wp.array1d(dtype=wp.float32)
     xyz: wp.array1d(dtype=wp.vec3f)
-    n_samples: wp.array1d(dtype=wp.int32)
+    offset: wp.array1d(dtype=wp.int32)
