@@ -38,7 +38,12 @@ class SHDeg4Encode(torch.autograd.Function):
     @staticmethod
     def forward(ctx, dirs):
         ctx.dirs = wp.from_torch(dirs)
-        ctx.sh = wp.zeros((dirs.shape[0], 16), dtype=wp.float32, device="cuda", requires_grad=True)
+        ctx.sh = wp.empty(
+            shape=(dirs.shape[0], 16),
+            dtype=wp.float32,
+            device=ctx.dirs.device,
+            requires_grad=True
+        )
         
         wp.launch(
             kernel=encode_sh_deg4_kernel,
