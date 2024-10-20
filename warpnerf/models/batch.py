@@ -13,6 +13,8 @@ class RayBatch:
     count: wp.int32
     dir: wp.array1d(dtype=wp.vec3f)
     ori: wp.array1d(dtype=wp.vec3f)
+    cos: wp.array1d(dtype=wp.float32)
+    radius: wp.array1d(dtype=wp.float32)
     alive: wp.array1d(dtype=wp.bool)
     t: wp.array1d(dtype=wp.float32)
 
