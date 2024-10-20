@@ -33,13 +33,14 @@ def apply_merf_contraction(xyz: wp.vec3f) -> wp.vec3f:
     return res
 
 
+# this one normalizes the points after applying the MERF contraction
 @wp.kernel
 def apply_merf_contraction_kernel(
     xyz: wp.array1d(dtype=wp.vec3f),
     out: wp.array1d(dtype=wp.vec3f)
 ) -> None:
     i = wp.tid()
-    out[i] = apply_merf_contraction(xyz[i])
+    out[i] = wp.cw_mul(0.5, apply_merf_contraction(xyz[i]))
 
 
 class MERFContractionFunction(torch.autograd.Function):
