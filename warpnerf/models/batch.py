@@ -5,6 +5,8 @@ import warp as wp
 class Ray:
     ori: wp.vec3f
     dir: wp.vec3f
+    cos: wp.float32
+    radius: wp.float32
 
 @wp.struct
 class RayBatch:

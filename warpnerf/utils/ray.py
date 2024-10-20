@@ -17,11 +17,19 @@ def get_global_ray_at_pixel_xy(
         (wp.float32(pixel_y) - wp.float32(img_h) / 2.0 + 0.5) / camera.f,
         1.0
     )
-    
+
     v_len = wp.length(v)
+    v_norm = wp.cw_div(v, v_len)
 
     ray = Ray()
     ray.dir = wp.normalize(wp.mul(camera.R, v))
     ray.ori = camera.t + (wp.mul(near * v_len, ray.dir))
+    ray.cos = v_norm.z
+
+    # radius is half way between the apothem and circumradius of the pixel
+    pixel_side_len = 1.0 / (camera.f)
+    pixel_apothem = 0.5 * pixel_side_len
+    pixel_circumradius = wp.sqrt(2) * pixel_apothem 
+    ray.radius = 0.5 * (pixel_apothem + pixel_circumradius)
 
     return ray
