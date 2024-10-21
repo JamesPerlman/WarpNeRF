@@ -40,7 +40,7 @@ def apply_merf_contraction_kernel(
     out: wp.array1d(dtype=wp.vec3f)
 ) -> None:
     i = wp.tid()
-    out[i] = wp.cw_mul(0.5, apply_merf_contraction(xyz[i]))
+    out[i] = wp.mul(0.5, apply_merf_contraction(xyz[i]))
 
 
 class MERFContractionFunction(torch.autograd.Function):

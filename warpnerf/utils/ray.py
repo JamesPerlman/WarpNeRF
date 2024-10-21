@@ -19,7 +19,7 @@ def get_global_ray_at_pixel_xy(
     )
 
     v_len = wp.length(v)
-    v_norm = wp.cw_div(v, v_len)
+    v_norm = wp.div(v, v_len)
 
     ray = Ray()
     ray.dir = wp.normalize(wp.mul(camera.R, v))
