@@ -12,6 +12,7 @@ import tqdm
 
 from fvdb import GridBatch
 from fvdb.utils import volume_render
+import fvdb
 
 TensorPair = Tuple[torch.Tensor, torch.Tensor]
 TensorTriple = Tuple[torch.Tensor, torch.Tensor, torch.Tensor]

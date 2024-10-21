@@ -4,7 +4,7 @@ import warp as wp
 
 from viser import ViserServer
 
-from warpnerf.training.dataset import Dataset
+from warpnerf.models.dataset import Dataset
 
 class VisualizationServer:
     def __init__(self):

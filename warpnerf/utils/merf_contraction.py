@@ -1,8 +1,6 @@
 import torch
 import warp as wp
 
-from warpnerf.models.bounding_box import BoundingBox
-
 # adapted from page 4 of https://arxiv.org/pdf/2302.12249
 # transforms (-∞, ∞) to (-2, 2), preserving the range [-1, 1] along each axis
 
@@ -13,24 +11,24 @@ def apply_merf_contraction(xyz: wp.vec3f) -> wp.vec3f:
     if max_extent_xyz <= 1.0:
         return xyz
     
-    res: wp.vec3f = xyz
+    x, y, z = xyz.x, xyz.y, xyz.z
 
-    if xyz.x != max_extent_xyz:
-        res.x = xyz.x / max_extent_xyz
+    if x != max_extent_xyz:
+        x = x / max_extent_xyz
     else:
-        res.x = (2.0 - 1.0 / wp.abs(xyz.x)) * wp.sign(xyz.x)
+        x = (2.0 - 1.0 / wp.abs(x)) * wp.sign(x)
 
-    if xyz.y != max_extent_xyz:
-        res.y = xyz.y / max_extent_xyz
+    if y != max_extent_xyz:
+        y = y / max_extent_xyz
     else:
-        res.y = (2.0 - 1.0 / wp.abs(xyz.y)) * wp.sign(xyz.y)
+        y = (2.0 - 1.0 / wp.abs(y)) * wp.sign(y)
 
-    if xyz.z != max_extent_xyz:
-        res.z = xyz.z / max_extent_xyz
+    if z != max_extent_xyz:
+        z = z / max_extent_xyz
     else:
-        res.z = (2.0 - 1.0 / wp.abs(xyz.z)) * wp.sign(xyz.z)
+        z = (2.0 - 1.0 / wp.abs(z)) * wp.sign(z)
         
-    return res
+    return wp.vec3f(x, y, z)
 
 
 # this one normalizes the points after applying the MERF contraction
@@ -38,27 +36,31 @@ def apply_merf_contraction(xyz: wp.vec3f) -> wp.vec3f:
 def apply_merf_contraction_kernel(
     xyz: wp.array1d(dtype=wp.vec3f),
     out: wp.array1d(dtype=wp.vec3f)
-) -> None:
+):
     i = wp.tid()
-    out[i] = wp.mul(0.5, apply_merf_contraction(xyz[i]))
+
+    contracted_xyz = apply_merf_contraction(xyz[i])
+
+    # normalize the contracted point to [0, 1)
+    out[i] = 0.5 * contracted_xyz + wp.vec3f(0.5, 0.5, 0.5)
 
 
-class MERFContractionFunction(torch.autograd.Function):
+class MERFContraction(torch.autograd.Function):
     @staticmethod
     def forward(ctx, xyz):
-        ctx.xyz = wp.from_torch(xyz)
+        ctx.xyz = wp.from_torch(xyz, dtype=wp.vec3f)
         ctx.out = wp.empty(
-            shape=xyz.shape,
+            shape=(xyz.shape[0]),
             dtype=wp.vec3f,
             device=ctx.xyz.device,
             requires_grad=True
         )
-        
+
         wp.launch(
             kernel=apply_merf_contraction_kernel,
-            dim=xyz.shape[0],
+            dim=ctx.xyz.shape[0],
             inputs=[ctx.xyz],
-            outputs=[ctx.out],
+            outputs=[ctx.out]
         )
 
         return wp.to_torch(ctx.out)
@@ -66,7 +68,7 @@ class MERFContractionFunction(torch.autograd.Function):
     @staticmethod
     def backward(ctx, adj_out):
         ctx.out.grad = wp.from_torch(adj_out)
-        
+
         wp.launch(
             kernel=apply_merf_contraction_kernel,
             dim=ctx.xyz.shape[0],

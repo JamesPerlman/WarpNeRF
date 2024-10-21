@@ -120,7 +120,7 @@ class Dataset:
 
         wp.launch(
             init_training_rays_and_pixels_kernel,
-            dim=(n_rays,),
+            dim=n_rays,
             inputs=[
                 random_seed,
                 self.num_images,

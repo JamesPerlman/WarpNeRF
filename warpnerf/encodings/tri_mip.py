@@ -17,7 +17,11 @@ class TriMipEncoding(torch.nn.Module):
 
         self.register_parameter(
             "texture",
-            torch.nn.parameter(torch.zeros(3, base_resolution, base_resolution, feature_dim)),
+            torch.nn.Parameter(
+                data=torch.zeros(
+                    3, base_resolution, base_resolution, feature_dim, device="cuda"
+                )
+            )
         )
 
         torch.nn.init.uniform_(self.texture, -1e-2, 1e-2)
@@ -41,7 +45,7 @@ class TriMipEncoding(torch.nn.Module):
         )
 
         level = torch.stack([level, level, level], dim=0)
-
+        level = torch.unsqueeze(level, dim=-1)
         level = torch.broadcast_to(level, x_decomposed.shape[:3]).contiguous()
 
         # shape is 3xNx1xC

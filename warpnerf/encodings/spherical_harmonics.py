@@ -34,10 +34,10 @@ def encode_sh_deg4_kernel(
 
     encode_sh_deg4(dirs[i], sh_out[i])
 
-class SHDeg4Encode(torch.autograd.Function):
+class SHDeg4EncodeFunction(torch.autograd.Function):
     @staticmethod
     def forward(ctx, dirs):
-        ctx.dirs = wp.from_torch(dirs)
+        ctx.dirs = wp.from_torch(dirs, dtype=wp.vec3f)
         ctx.sh = wp.empty(
             shape=(dirs.shape[0], 16),
             dtype=wp.float32,
@@ -72,7 +72,7 @@ class SHDeg4Encode(torch.autograd.Function):
 
 class SHDeg4Encoding(torch.nn.Module):
     def forward(self, dirs):
-        return SHDeg4Encode.apply(dirs)
+        return SHDeg4EncodeFunction.apply(dirs)
     
     @property
     def input_dim(self):

@@ -29,7 +29,7 @@ def get_global_ray_at_pixel_xy(
     # radius is half way between the apothem and circumradius of the pixel
     pixel_side_len = 1.0 / (camera.f)
     pixel_apothem = 0.5 * pixel_side_len
-    pixel_circumradius = wp.sqrt(2) * pixel_apothem 
+    pixel_circumradius = wp.sqrt(2.0) * pixel_apothem 
     ray.radius = 0.5 * (pixel_apothem + pixel_circumradius)
 
     return ray
