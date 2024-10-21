@@ -24,6 +24,8 @@ def create_ray_batch(count: int, device: str = "cuda") -> RayBatch:
     batch.count = count
     batch.dir = wp.empty(shape=(count), dtype=wp.vec3f, device=device)
     batch.ori = wp.empty(shape=(count), dtype=wp.vec3f, device=device)
+    batch.cos = wp.empty(shape=(count), dtype=wp.float32, device=device)
+    batch.radius = wp.empty(shape=(count), dtype=wp.float32, device=device)
     batch.alive = wp.zeros(shape=(count), dtype=wp.bool, device=device)
     batch.t = wp.zeros(shape=(count), dtype=wp.float32, device=device)
 
