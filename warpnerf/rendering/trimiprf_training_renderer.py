@@ -55,9 +55,6 @@ class TriMipRFTrainingRenderer:
         sample_rgb = model.query_rgb(sample_dir, sample_geo)
 
         # volume render
-        print("sample_d", sample_d.shape)
-        print("sample_rgb", sample_rgb.shape)
-        print(pack_info)
 
         ray_rgb, ray_depth, ray_opacity, ray_w, ray_num_samples = fvdb.volume_render(
             sigmas=sample_d,

@@ -18,7 +18,7 @@ class Trainer:
 
     n_steps: int = 0
 
-    n_rays_per_batch: int = 16384
+    n_rays_per_batch: int = 32768
 
     def __init__(
         self,
@@ -33,7 +33,6 @@ class Trainer:
     
     def step(self):
         self.opt.zero_grad()
-        wp.synchronize()
 
         rays, target_rgba = self.dataset.get_batch(
             n_rays=self.n_rays_per_batch,
