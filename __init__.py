@@ -23,7 +23,8 @@ model = TrimipRFModel()
 optimizer = torch.optim.Adam(model.parameters())
 trainer = Trainer(dataset, model, optimizer)
 
-trainer.step()
+for i in range(1000):
+    trainer.step()
 
 wp.synchronize()
 
