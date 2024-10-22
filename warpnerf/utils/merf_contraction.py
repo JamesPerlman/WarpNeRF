@@ -42,7 +42,7 @@ def apply_merf_contraction_kernel(
     contracted_xyz = apply_merf_contraction(xyz[i])
 
     # normalize the contracted point to [0, 1)
-    out[i] = 0.5 * contracted_xyz + wp.vec3f(0.5, 0.5, 0.5)
+    out[i] = 0.25 * contracted_xyz + wp.vec3f(0.5, 0.5, 0.5)
 
 
 class MERFContraction(torch.autograd.Function):
