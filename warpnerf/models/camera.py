@@ -50,13 +50,12 @@ class TrainingCamera:
         
         return self._image_dims
 
-@wp.func
-def get_scene_bounding_box(cameras: wp.array1d(dtype=CameraData)) -> BoundingBox:
+def get_scene_bounding_box(cameras: TrainingCamera) -> BoundingBox:
     min = wp.vec3f([np.inf, np.inf, np.inf])
     max = wp.vec3f([-np.inf, -np.inf, -np.inf])
 
     for camera in cameras:
-        min = vec3f_cwise_min(min, camera.t)
-        max = vec3f_cwise_max(max, camera.t)
+        min = vec3f_cwise_min(min, camera.camera_data.t)
+        max = vec3f_cwise_max(max, camera.camera_data.t)
 
     return create_bounding_box(min, max)

@@ -8,7 +8,10 @@ class BoundingBox:
     max: wp.vec3
 
 def create_bounding_box(min: wp.vec3, max: wp.vec3) -> BoundingBox:
-    return BoundingBox(min=min, max=max)
+    bbox = BoundingBox()
+    bbox.min = min
+    bbox.max = max
+    return bbox
 
 @wp.func
 def bbox_contains_point(bbox: BoundingBox, point: wp.vec3) -> wp.bool:

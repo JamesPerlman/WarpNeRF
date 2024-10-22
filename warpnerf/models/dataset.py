@@ -5,7 +5,8 @@ from pathlib import Path
 from typing import List
 
 from warpnerf.models.batch import RayBatch, create_ray_batch
-from warpnerf.models.camera import CameraData, TrainingCamera, create_camera_data_from_bundler
+from warpnerf.models.bounding_box import BoundingBox
+from warpnerf.models.camera import CameraData, TrainingCamera, create_camera_data_from_bundler, get_scene_bounding_box
 from warpnerf.training.batcher import init_training_rays_and_pixels_kernel
 from warpnerf.utils.bundler_sfm import BundlerSFMData, create_bundler_sfm_data_from_path
 from warpnerf.utils.image import save_image
@@ -96,6 +97,19 @@ class Dataset:
 
         return self._image_data
 
+    @property
+    def scene_bounding_box(self) -> BoundingBox:
+        assert self.is_loaded, "Dataset not loaded"
+        
+        return get_scene_bounding_box(self.training_cameras)
+    
+    @property
+    def scene_center(self) -> wp.vec3f:
+        assert self.is_loaded, "Dataset not loaded"
+        
+        bbox = self.scene_bounding_box
+        return 0.5 * (bbox.min + bbox.max)
+
     def load(self):
 
         if self.is_loaded:
@@ -111,6 +125,20 @@ class Dataset:
             camera_data = create_camera_data_from_bundler(bundler_camera_data)
             training_camera = TrainingCamera(camera_data, image_path)
             self.training_cameras.append(training_camera)
+    
+    def resize_and_center(self, max_extent: float):
+        assert self.is_loaded, "Dataset not loaded"
+
+        scene_bbox = self.scene_bounding_box
+        scene_center = 0.5 * (scene_bbox.min + scene_bbox.max)
+        scene_extent = scene_bbox.max - scene_bbox.min
+        scene_max_extent = max(scene_extent.x, scene_extent.y, scene_extent.z)
+        scale = 2.0 / scene_max_extent * max_extent
+
+        for camera in self.training_cameras:
+            camera.camera_data.t = scale * (camera.camera_data.t - scene_center)
+            camera.camera_data.f *= scale
+
 
     def get_batch(self, n_rays: int, random_seed: wp.int32, device: str = "cuda") -> tuple[RayBatch, wp.array(dtype=wp.vec4f)]:
         assert self.is_loaded, "Dataset not loaded"
