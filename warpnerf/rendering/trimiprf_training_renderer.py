@@ -35,7 +35,7 @@ class TriMipRFTrainingRenderer:
         sample_dir = ray_dir[ray_idx]
 
         # contract xyz
-        sample_xyz = model.contraction(sample_xyz / model.aabb_size)
+        sample_xyz = model.contraction(2.0 * sample_xyz / model.aabb_size)
 
         # calculate sample radii for cone marching / sphere tracing
         ray_cos = wp.to_torch(rays.cos, requires_grad=False)
