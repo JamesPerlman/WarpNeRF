@@ -1,6 +1,6 @@
 import warp as wp
 
-from warpnerf.models.batch import Ray
+from warpnerf.models.batch import Ray, RayBatch
 from warpnerf.models.camera import CameraData
 
 @wp.func
@@ -10,7 +10,7 @@ def get_global_ray_at_pixel_xy(
     img_h: wp.int32,
     pixel_x: wp.int32,
     pixel_y: wp.int32,
-    near: wp.float32 = 0.0,
+    near: wp.float32 = 0.05,
 ) -> Ray:
     v = wp.vec3f(
         (wp.float32(pixel_x) - wp.float32(img_w) / 2.0 + 0.5) / camera.f,
@@ -33,3 +33,21 @@ def get_global_ray_at_pixel_xy(
     ray.radius = 0.5 * (pixel_apothem + pixel_circumradius)
 
     return ray
+
+
+@wp.kernel
+def get_rays_for_camera_kernel(
+    camera: CameraData,
+    img_w: wp.int32,
+    img_h: wp.int32,
+    rays_out: RayBatch,
+):
+    i, j = wp.tid()
+    idx = wp.tid()
+
+    ray = get_global_ray_at_pixel_xy(camera, img_w, img_h, i, j)
+
+    rays_out.ori[idx] = ray.ori
+    rays_out.dir[idx] = ray.dir
+    rays_out.cos[idx] = ray.cos
+    rays_out.radius[idx] = ray.radius
