@@ -45,7 +45,10 @@ class TrainingCamera:
         return  load_image(self.image_path)
 
     def get_image_dims(self) -> tuple[int, int]:
-        return get_image_dims(self.image_path)
+        if not hasattr(self, "_image_dims"):
+            self._image_dims = get_image_dims(self.image_path)
+        
+        return self._image_dims
 
 @wp.func
 def get_scene_bounding_box(cameras: wp.array1d(dtype=CameraData)) -> BoundingBox:
