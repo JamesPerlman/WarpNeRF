@@ -6,14 +6,14 @@ from torch import Tensor
 from warpnerf.models.batch import RayBatch, SampleBatch
 from warpnerf.models.trimiprf_model import TrimipRFModel
 
-class TriMipRFTrainingRenderer:
-    def __call__(self, model: TrimipRFModel, rays: RayBatch) -> tuple[Tensor, Tensor, Tensor]:
+class TriMipRFTrainingRenderer(torch.nn.Module):
+    def forward(self, model: TrimipRFModel, rays: RayBatch) -> tuple[Tensor, Tensor, Tensor]:
 
         ray_ori = wp.to_torch(rays.ori, requires_grad=False)
         ray_dir = wp.to_torch(rays.dir, requires_grad=False)
         t_min = torch.zeros(ray_ori.shape[0]).to(ray_ori)
         t_max = torch.full_like(t_min, fill_value=1e9)
-        step_size = math.sqrt(3.0) / 512.0
+        step_size = model.aabb_scale * math.sqrt(3.0) / 256.0
 
         # pack_info, ray_idx, ray_intervals = model.grid.uniform_ray_samples(ray_ori, ray_dir, t_min, t_max, step_size)
         ray_intervals = model.grid.uniform_ray_samples(
@@ -34,9 +34,6 @@ class TriMipRFTrainingRenderer:
         sample_xyz = ray_ori[ray_idx] + ray_dir[ray_idx] * sample_t[:, None]
         sample_dir = ray_dir[ray_idx]
 
-        # contract xyz
-        sample_xyz = model.contraction(2.0 * sample_xyz / model.aabb_size)
-
         # calculate sample radii for cone marching / sphere tracing
         ray_cos = wp.to_torch(rays.cos, requires_grad=False)
         ray_radius = wp.to_torch(rays.radius, requires_grad=False)
@@ -46,8 +43,8 @@ class TriMipRFTrainingRenderer:
         sample_tmp = ray_tmp[ray_idx]
         sample_cos = ray_cos[ray_idx]
         sample_radius = sample_t * ray_radius[ray_idx] * sample_cos / (sample_tmp * sample_tmp + 1.0).sqrt()
-        sample_vol = torch.log2(2.0 * sample_radius / model.aabb_size)
-
+        sample_vol = torch.log2(2.0 * sample_radius / model.aabb_scale)
+        
         # query density
         sample_d, sample_geo = model.query_density(sample_xyz, sample_vol, return_feat=True)
 
