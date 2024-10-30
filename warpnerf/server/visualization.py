@@ -37,22 +37,25 @@ class VisualizationServer:
     def set_background_image(self, image: np.ndarray):
         self.viser.scene.set_background_image(image)
     
-    def get_viewport_camera(self):
+    def get_viewport_camera(self, aabb_scale: float = 1.0) -> TrainingCamera:
         clients = self.viser.get_clients()
+        if len(clients) == 0:
+            return None
         client = clients[0]
         viser_cam = client.camera
         T = viser_cam.position
         q = viser_cam.wxyz
-        R = wp.quat_to_matrix(wp.quat(q[1], q[2], q[3], q[0]))
+        R = wp.quat_to_matrix(wp.quat([q[1], q[2], q[3], q[0]]))
+        R = wp.transpose(R)
         cam_data = CameraData()
         fov = viser_cam.fov
         focal_len = 0.5 / math.tan(fov / 2)
-        W = 400
-        H = viser_cam.aspect * W
+        H = 512
+        W = H * viser_cam.aspect
         cam_data.f = focal_len
-        cam_data.sx = 1.0
-        cam_data.sy = viser_cam.aspect
-        cam_data.t = T
+        cam_data.sx = viser_cam.aspect
+        cam_data.sy = 1.0
+        cam_data.t = T / aabb_scale
         cam_data.R = R
 
         train_cam = TrainingCamera(camera_data=cam_data, image_path=None, image_dims=(int(W), int(H)))
