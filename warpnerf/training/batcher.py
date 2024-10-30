@@ -35,7 +35,7 @@ def init_training_rays_and_pixels_kernel(
     rgba_out[2][i] = rgba_in[image_idx][2][pixel_x][pixel_y]
     rgba_out[3][i] = rgba_in[image_idx][3][pixel_x][pixel_y]
 
-    ray = get_global_ray_at_pixel_xy(cams_in[image_idx], img_w, img_h, pixel_x, pixel_y, 0.0)
+    ray = get_global_ray_at_pixel_xy(cams_in[image_idx], img_w, img_h, pixel_x, pixel_y)
     rays_out.ori[i] = ray.ori
     rays_out.dir[i] = ray.dir
     rays_out.cos[i] = ray.cos
@@ -43,6 +43,3 @@ def init_training_rays_and_pixels_kernel(
     rays_out.alive[i] = True
     rays_out.t[i] = 0.0
 
-
-# class Batcher:
-    
