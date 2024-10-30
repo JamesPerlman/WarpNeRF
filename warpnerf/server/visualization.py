@@ -4,6 +4,7 @@ import warp as wp
 
 from viser import ViserServer
 
+from warpnerf.models.camera import CameraData, TrainingCamera
 from warpnerf.models.dataset import Dataset
 
 class VisualizationServer:
@@ -14,12 +15,11 @@ class VisualizationServer:
         self.viser.scene.reset()
 
         images = [t.get_image() for t in dataset.training_cameras]
-        dims = dataset.image_dims
-        w, h = dims[0], dims[1]
 
         for i, training_cam in enumerate(dataset.training_cameras):
-            image = images[i][::8, ::8, :]
-            
+            image = images[i][::16, ::16, :]
+            w = training_cam.camera_data.sx
+            h = training_cam.camera_data.sy
             q = wp.quat_from_matrix(training_cam.camera_data.R)
             cam_rot = np.array([q[3], q[0], q[1], q[2]])
             cam_pos = np.array(training_cam.camera_data.t)
@@ -36,3 +36,25 @@ class VisualizationServer:
     
     def set_background_image(self, image: np.ndarray):
         self.viser.scene.set_background_image(image)
+    
+    def get_viewport_camera(self):
+        clients = self.viser.get_clients()
+        client = clients[0]
+        viser_cam = client.camera
+        T = viser_cam.position
+        q = viser_cam.wxyz
+        R = wp.quat_to_matrix(wp.quat(q[1], q[2], q[3], q[0]))
+        cam_data = CameraData()
+        fov = viser_cam.fov
+        focal_len = 0.5 / math.tan(fov / 2)
+        W = 400
+        H = viser_cam.aspect * W
+        cam_data.f = focal_len
+        cam_data.sx = 1.0
+        cam_data.sy = viser_cam.aspect
+        cam_data.t = T
+        cam_data.R = R
+
+        train_cam = TrainingCamera(camera_data=cam_data, image_path=None, image_dims=(int(W), int(H)))
+
+        return train_cam
