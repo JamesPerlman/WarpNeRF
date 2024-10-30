@@ -9,13 +9,15 @@ from warpnerf.utils.math import vec3f_cwise_max, vec3f_cwise_min
 
 @wp.struct
 class CameraData:
-    f: wp.float32
-    k1: wp.float32
-    k2: wp.float32
-    R: wp.mat33f
-    t: wp.vec3f
+    f: wp.float32   # focal length in pixels
+    sx: wp.float32  # sensor width in pixels
+    sy: wp.float32  # sensor height in pixels
+    k1: wp.float32  # radial distortion coefficient
+    k2: wp.float32  # radial distortion coefficient
+    R: wp.mat33f    # rotation matrix
+    t: wp.vec3f     # translation vector
 
-def create_camera_data_from_bundler(data: BundlerSFMCameraData) -> CameraData:
+def create_camera_data_from_bundler(data: BundlerSFMCameraData, image_dims: tuple[int, int]) -> CameraData:
     cam = CameraData()
     cam.f = data.f
     cam.k1 = data.k1
@@ -30,25 +32,24 @@ def create_camera_data_from_bundler(data: BundlerSFMCameraData) -> CameraData:
     )
     cam.R = wp.mul(R, M)
     cam.t = wp.mul(wp.neg(R), t)
+    cam.sx = wp.float32(image_dims[0])
+    cam.sy = wp.float32(image_dims[1])
     return cam
 
 class TrainingCamera:
 
     camera_data: CameraData
     image_path: Path
+    image_dims: tuple[int, int]
 
-    def __init__(self, camera_data: CameraData, image_path: Path):
+    def __init__(self, camera_data: CameraData, image_path: Path, image_dims: tuple[int, int]):
         self.camera_data = camera_data
         self.image_path = image_path
+        self.image_dims = image_dims
 
     def get_image(self) -> wp.array3d(dtype=wp.uint8):
         return  load_image(self.image_path)
 
-    def get_image_dims(self) -> tuple[int, int]:
-        if not hasattr(self, "_image_dims"):
-            self._image_dims = get_image_dims(self.image_path)
-        
-        return self._image_dims
 
 def get_scene_bounding_box(cameras: TrainingCamera) -> BoundingBox:
     min = wp.vec3f([np.inf, np.inf, np.inf])
