@@ -11,7 +11,7 @@ class NeRFModel(torch.nn.Module):
     pos_enc: torch.nn.Module
     mlp_base: MLP
     mlp_head: MLP
-    aabb_size: float
+    aabb_scale: float
 
     def __init__(self) -> None:
         super().__init__()

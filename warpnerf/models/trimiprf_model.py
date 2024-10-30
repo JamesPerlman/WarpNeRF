@@ -13,7 +13,7 @@ from warpnerf.utils.trunc_exp import TruncExp
 class TrimipRFModel(NeRFModel):
     def __init__(
         self,
-        aabb_size: float = 1.0,
+        aabb_scale: float = 1.0,
         n_levels: int = 8,
         plane_size: int = 512,
         feature_dim: int = 16,
@@ -26,7 +26,7 @@ class TrimipRFModel(NeRFModel):
 
         device = torch.device("cuda")
 
-        self.aabb_size = aabb_size
+        self.aabb_scale = aabb_scale
         self.plane_size = plane_size
         self.log2_plane_size = math.log2(plane_size)
         self.feature_dim = feature_dim
@@ -45,7 +45,7 @@ class TrimipRFModel(NeRFModel):
         # input: encoded positions
         # output: density + geometric features (concatenated)
         self.mlp_base = MLP(
-            input_dim=self.pos_enc.output_dim,
+            input_dim=3,
             hidden_dim=net_width,
             output_dim=1 + geo_feat_dim, # +1 for density
             n_hidden_layers=net_depth_base
@@ -64,18 +64,17 @@ class TrimipRFModel(NeRFModel):
         # initialize grid
         self.grid_res = 256
         self.grid = GridBatch(device)
-        self.grid_res
         self.grid.set_from_dense_grid(
             num_grids=1,
             dense_dims=[self.grid_res] * 3,
             ijk_min=[-self.grid_res // 2] * 3,
-            voxel_sizes=1.0 / self.grid_res,
-            origins=[0.5 / self.grid_res] * 3
+            voxel_sizes=2.0 * self.aabb_scale / self.grid_res,
+            origins=[0.5 * self.aabb_scale / self.grid_res] * 3
         )
 
         # set up contraction function
         self.contraction = MERFContraction.apply
-   
+
     
     def query_density(
         self,
@@ -84,8 +83,8 @@ class TrimipRFModel(NeRFModel):
         return_feat: bool = False
     ) -> tuple[Tensor, Tensor]:
         
+        # vol = torch.clamp(vol + self.log2_plane_size, 0.0, self.log2_plane_size - 1.0)
         vol = vol + self.log2_plane_size
-
         within_model = ((xyz > 0.0) & (xyz < 1.0)).all(dim=-1)
 
         # encode positions
