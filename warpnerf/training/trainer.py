@@ -18,7 +18,7 @@ class Trainer:
 
     n_steps: int = 0
 
-    n_rays_per_batch: int = 32768
+    n_rays_per_batch: int = 4096
 
     def __init__(
         self,
