@@ -9,7 +9,7 @@ from warpnerf.models.bounding_box import BoundingBox
 from warpnerf.models.camera import CameraData, TrainingCamera, create_camera_data_from_bundler, get_scene_bounding_box
 from warpnerf.training.batcher import init_training_rays_and_pixels_kernel
 from warpnerf.utils.bundler_sfm import BundlerSFMData, create_bundler_sfm_data_from_path
-from warpnerf.utils.image import save_image
+from warpnerf.utils.image import get_image_dims
 
 def get_image_paths_from_lst(path: Path) -> List[Path]:
     with path.open("r") as f:
@@ -55,7 +55,7 @@ class Dataset:
         assert self.is_loaded, "Dataset not loaded"
         
         if not hasattr(self, "_image_dims"):
-            self._image_dims = self.training_cameras[0].get_image_dims()
+            self._image_dims = self.training_cameras[0].image_dims
         
         return self._image_dims
     
@@ -122,22 +122,25 @@ class Dataset:
 
         self.training_cameras = []
         for bundler_camera_data, image_path in zip(self.bundler_data.cameras, self.image_paths):
-            camera_data = create_camera_data_from_bundler(bundler_camera_data)
-            training_camera = TrainingCamera(camera_data, image_path)
+            image_dims = get_image_dims(image_path)
+            camera_data = create_camera_data_from_bundler(bundler_camera_data, image_dims)
+            training_camera = TrainingCamera(camera_data, image_path, image_dims)
             self.training_cameras.append(training_camera)
     
-    def resize_and_center(self, max_extent: float):
+    def resize_and_center(self, aabb_scale: float):
         assert self.is_loaded, "Dataset not loaded"
 
         scene_bbox = self.scene_bounding_box
         scene_center = 0.5 * (scene_bbox.min + scene_bbox.max)
         scene_extent = scene_bbox.max - scene_bbox.min
         scene_max_extent = max(scene_extent.x, scene_extent.y, scene_extent.z)
-        scale = 2.0 / scene_max_extent * max_extent
+        scale = 1.0 / scene_max_extent * aabb_scale
 
         for camera in self.training_cameras:
             camera.camera_data.t = scale * (camera.camera_data.t - scene_center)
             camera.camera_data.f *= scale
+            camera.camera_data.sx *= scale
+            camera.camera_data.sy *= scale
 
 
     def get_batch(self, n_rays: int, random_seed: wp.int32, device: str = "cuda") -> tuple[RayBatch, wp.array(dtype=wp.vec4f)]:
