@@ -45,7 +45,7 @@ class TrimipRFModel(NeRFModel):
         # input: encoded positions
         # output: density + geometric features (concatenated)
         self.mlp_base = MLP(
-            input_dim=3,
+            input_dim=self.pos_enc.output_dim,
             hidden_dim=net_width,
             output_dim=1 + geo_feat_dim, # +1 for density
             n_hidden_layers=net_depth_base
@@ -68,7 +68,7 @@ class TrimipRFModel(NeRFModel):
             num_grids=1,
             dense_dims=[self.grid_res] * 3,
             ijk_min=[-self.grid_res // 2] * 3,
-            voxel_sizes=2.0 * self.aabb_scale / self.grid_res,
+            voxel_sizes=self.aabb_scale / self.grid_res,
             origins=[0.5 * self.aabb_scale / self.grid_res] * 3
         )
 
