@@ -67,9 +67,9 @@ class TrimipRFModel(NeRFModel):
         self.grid.set_from_dense_grid(
             num_grids=1,
             dense_dims=[self.grid_res] * 3,
-            ijk_min=[-self.grid_res // 2] * 3,
+            ijk_min=[0] * 3,
             voxel_sizes=self.aabb_scale / self.grid_res,
-            origins=[0.5 * self.aabb_scale / self.grid_res] * 3
+            origins=[0.5 * self.aabb_scale * (1.0 / self.grid_res - 1.0)] * 3
         )
 
         # set up contraction function
@@ -85,7 +85,7 @@ class TrimipRFModel(NeRFModel):
         
         # vol = torch.clamp(vol + self.log2_plane_size, 0.0, self.log2_plane_size - 1.0)
         vol = vol + self.log2_plane_size
-        within_model = ((xyz > 0.0) & (xyz < 1.0)).all(dim=-1)
+        # within_model = ((xyz > 0.0) & (xyz < 1.0)).all(dim=-1)
 
         # encode positions
         contracted_xyz = self.contraction(xyz)
@@ -102,7 +102,7 @@ class TrimipRFModel(NeRFModel):
         d_raw, geo_feat = torch.split(mlp_result, [1, self.geo_feat_dim], dim=-1)
 
         # apply density activation and mask
-        density = within_model * self.density_activation(d_raw.squeeze(-1))
+        density = self.density_activation(d_raw.squeeze(-1))
         
         if return_feat:
             return density, geo_feat
