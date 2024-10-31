@@ -46,11 +46,10 @@ class VisualizationServer:
         T = viser_cam.position
         q = viser_cam.wxyz
         R = wp.quat_to_matrix(wp.quat([q[1], q[2], q[3], q[0]]))
-        R = wp.transpose(R)
         cam_data = CameraData()
         fov = viser_cam.fov
         focal_len = 0.5 / math.tan(fov / 2)
-        H = 512
+        H = 100
         W = H * viser_cam.aspect
         cam_data.f = focal_len
         cam_data.sx = viser_cam.aspect
