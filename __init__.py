@@ -84,21 +84,23 @@ def save_img(model, camera: TrainingCamera, idx: int):
 
 
 def server_render():
-    viewport_cam = server.get_viewport_camera()
+    viewport_cam = server.get_viewport_camera(aabb_scale)
     rgb, alpha = render_camera(model, viewport_cam)
     w, h = viewport_cam.image_dims
-    rgb = np.array(rgb.reshape(w, h, 3).detach().cpu().numpy(), dtype=np.float32)
+    rgb = np.array(rgb.reshape(w, h, 3).permute(1,0,2).detach().cpu().numpy(), dtype=np.float32)
     print("rgb dtype:", rgb.dtype)
     print("rgb shape:", rgb.shape)
     print("rgb max/min values:", rgb.max(), rgb.min())
     server.set_background_image(rgb)
 
-for i in range(200):
+for i in range(5000):
     trainer.step()
+
+    if i % 10 == 0:
+        server_render()
 
     if i % 100 == 0:
         save_img(model, dataset.training_cameras[0], i)
-        server_render()
 
 wp.synchronize()
 
