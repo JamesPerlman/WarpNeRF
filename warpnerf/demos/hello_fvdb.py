@@ -71,24 +71,24 @@ def hello_fvdb():
     grid.set_from_dense_grid(
         num_grids=1,
         dense_dims=grid_shape,
-        ijk_min=[-grid_res // 2] * 3,
+        ijk_min=[0] * 3,
         voxel_sizes=aabb_scale / grid_res,
-        origins=[0.5 * aabb_scale / grid_res] * 3
+        origins=[0.5 * aabb_scale * (1.0 / grid_res - 1.0)] * 3
     )
 
     rgb_feats = generate_rgb_features(grid, grid_shape)
-    alpha_feats = generate_density_features(grid, grid_shape, 0.5)
+    alpha_feats = generate_density_features(grid, grid_shape, 1.0)
     print(rgb_feats.shape)
     print(alpha_feats.shape)
 
     def render(camera: TrainingCamera):
-        w, h = cam.image_dims
+        w, h = camera.image_dims
         rays = create_ray_batch(w * h)
         wp.launch(
             kernel=get_rays_for_camera_kernel,
             dim=(w, h),
             inputs=[
-                cam.camera_data,
+                camera.camera_data,
                 w,
                 h
             ],
@@ -121,6 +121,9 @@ def hello_fvdb():
         sample_xyz = ray_ori[ray_idx] + ray_dir[ray_idx] * sample_t[:, None]
         sample_dir = ray_dir[ray_idx]
 
+        if sample_xyz.numel() == 0:
+            return np.zeros((h, w, 3), dtype=np.float32)
+
         sample_rgb = grid.sample_trilinear(
             points=sample_xyz,
             voxel_data=rgb_feats
@@ -140,16 +143,18 @@ def hello_fvdb():
             transmittanceThresh=1e-5
         )
 
-        rgb = np.array(rgb.reshape(w, h, 3).detach().cpu().numpy(), dtype=np.float32)
+        rgb = rgb.reshape(w, h, 3)
+        # transpose to (h, w, 3) for visualization
+        rgb = rgb.permute(1, 0, 2)
+        rgb = np.array(rgb.detach().cpu().numpy(), dtype=np.float32)
         return rgb
 
 
     while True:
-        sleep(0.5)
+        sleep(0.1)
         cam = server.get_viewport_camera()
         if cam is None:
             continue
         w, h = cam.image_dims
-        print(w, h)
         debug_img = render(cam)
         server.set_background_image(debug_img)
