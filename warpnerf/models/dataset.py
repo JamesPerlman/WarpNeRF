@@ -1,3 +1,6 @@
+from enum import Enum
+import json
+import math
 import numpy as np
 import warp as wp
 
@@ -28,18 +31,21 @@ def copy_and_transpose_image_data_kernel(
     rgba_out[img_index][2][i][j] = rgba_in[j][i][2]
     rgba_out[img_index][3][i][j] = rgba_in[j][i][3]
 
+# dataset types string union
+class DatasetType(Enum):
+    BUNDLER = "bundler"
+    TRANSFORMS_JSON = "transforms_json"
+
 class Dataset:
     
     path: Path
-    bundler_data: BundlerSFMData = None
+    is_loaded: bool = False
     training_cameras: List[TrainingCamera] = []
+    type: DatasetType
 
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, type: DatasetType): 
         self.path = path
-
-    @property
-    def is_loaded(self) -> bool:
-        return self.bundler_data is not None
+        self.type = type
     
     @property
     def num_cameras(self) -> int:
@@ -115,17 +121,56 @@ class Dataset:
         if self.is_loaded:
             return
 
-        self.bundler_data = create_bundler_sfm_data_from_path(self.path / "registration.out", read_points=False)
+        if self.type == DatasetType.BUNDLER:
+            bundler_data = create_bundler_sfm_data_from_path(self.path / "registration.out", read_points=False)
 
-        # images are named "00000.png", "00001.png", etc.
-        self.image_paths = [self.path / f"{i:05d}.png" for i in range(len(self.bundler_data.cameras))]
+            # images are named "00000.png", "00001.png", etc.
+            self.image_paths = [self.path / f"{i:05d}.png" for i in range(len(bundler_data.cameras))]
 
-        self.training_cameras = []
-        for bundler_camera_data, image_path in zip(self.bundler_data.cameras, self.image_paths):
-            image_dims = get_image_dims(image_path)
-            camera_data = create_camera_data_from_bundler(bundler_camera_data, image_dims)
-            training_camera = TrainingCamera(camera_data, image_path, image_dims)
-            self.training_cameras.append(training_camera)
+            self.training_cameras = []
+            for bundler_camera_data, image_path in zip(bundler_data.cameras, self.image_paths):
+                image_dims = get_image_dims(image_path)
+                camera_data = create_camera_data_from_bundler(bundler_camera_data, image_dims)
+                training_camera = TrainingCamera(camera_data, image_path, image_dims)
+                self.training_cameras.append(training_camera)
+
+        if self.type == DatasetType.TRANSFORMS_JSON:
+            json_data = None
+            with open(self.path, "r") as f:
+                json_data = json.load(f)
+            
+            frames = json_data["frames"]
+            self.image_paths = [self.path.parent / f["file_path"] for f in frames]
+            img_w, img_h = get_image_dims(self.image_paths[0])
+            camera_angle_x = json_data["camera_angle_x"] if "camera_angle_x" in json_data else 0.0
+            camera_fx = 0.5 * img_w / math.tan(0.5 * camera_angle_x)
+            camera_k1 = 0.0
+            camera_k2 = 0.0
+
+            self.training_cameras = []
+            for i, frame in enumerate(frames):
+                M = np.array(frame["transform_matrix"])
+                
+                cam_data = CameraData()
+                cam_data.f = camera_fx
+                cam_data.sx = img_w
+                cam_data.sy = img_h
+                cam_data.k1 = camera_k1
+                cam_data.k2 = camera_k2
+                
+                R = wp.mat33f(M[:3, :3])
+                FLIP_MAT = wp.mat33f(
+                    [[1, 0, 0],
+                    [0, -1, 0],
+                    [0, 0, -1]]
+                )
+                cam_data.R = wp.mul(R, FLIP_MAT)
+                cam_data.t = wp.vec3f(M[:3, 3])
+
+                training_camera = TrainingCamera(cam_data, self.image_paths[i], (img_w, img_h))
+                self.training_cameras.append(training_camera)
+            
+        self.is_loaded = True
     
     def resize_and_center(self, aabb_scale: float):
         assert self.is_loaded, "Dataset not loaded"

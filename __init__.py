@@ -8,8 +8,10 @@ from pathlib import Path
 
 from warpnerf.models.batch import create_ray_batch
 from warpnerf.models.camera import TrainingCamera
+from warpnerf.models.gridrf_model import GridRFModel
 from warpnerf.models.trimiprf_model import TrimipRFModel
-from warpnerf.models.dataset import Dataset
+from warpnerf.models.dataset import Dataset, DatasetType
+from warpnerf.rendering.basic_grid_renderer import generate_samples, render_samples, query_samples
 from warpnerf.server.visualization import VisualizationServer
 from warpnerf.training.trainer import Trainer
 from warpnerf.utils.image import save_image
@@ -32,25 +34,39 @@ wp.init()
 # print(random_vec3s)
 # print(contracted_vec3s)
 # exit()
-dataset = Dataset(path=Path("/home/luks/james/nerfs/turb-small"))
+#dataset = Dataset(path=Path("/home/luks/james/nerfs/turb-small"), type=DatasetType.BUNDLER)
+dataset = Dataset(
+    path=Path("/home/luks/james/nerfs/nerf_synthetic/lego/transforms_train.json"),
+    type=DatasetType.TRANSFORMS_JSON,
+)
 dataset.load()
-aabb_scale = 8.0
-dataset.resize_and_center(aabb_scale=aabb_scale)
+scene_extent = dataset.scene_bounding_box.max - dataset.scene_bounding_box.min
+aabb_scale = 4 #max(scene_extent.x, scene_extent.y, scene_extent.z)
+# dataset.resize_and_center(aabb_scale=aabb_scale)
 print(dataset.scene_bounding_box.max - dataset.scene_bounding_box.min)
-model = TrimipRFModel(aabb_scale=aabb_scale)
-optimizer = torch.optim.Adam(model.parameters())
+print(aabb_scale)
+
+model = GridRFModel(aabb_scale=aabb_scale)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-1)
 trainer = Trainer(dataset, model, optimizer)
+
+def update_optimizer(model):
+    global optimizer
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-1)
+    global trainer
+    trainer.opt = optimizer
+
+model.on_subdivide_grid = update_optimizer
 
 server = VisualizationServer()
 server.set_dataset(dataset)
-
 
 def render_camera(model, camera: TrainingCamera, img_w = None, img_h = None):
     if img_w is None:
         img_w, img_h = camera.image_dims
     
     n_pixels = img_w * img_h
-    ray_batch = create_ray_batch(n_pixels)
+    rays = create_ray_batch(n_pixels)
     wp.launch(
         kernel=get_rays_for_camera_kernel,
         dim=(img_w, img_h),
@@ -60,11 +76,15 @@ def render_camera(model, camera: TrainingCamera, img_w = None, img_h = None):
             img_h,
         ],
         outputs=[
-            ray_batch
+            rays
         ],
     )
-    rgb, depth, alpha = trainer.renderer(model, ray_batch)
+
+    samples = generate_samples(model, rays)
+    samples = query_samples(model, samples)
+    rgb, depth, alpha = render_samples(samples)
     return rgb, alpha
+
 
 def save_img(model, camera: TrainingCamera, idx: int):
 
@@ -82,15 +102,13 @@ def save_img(model, camera: TrainingCamera, idx: int):
     save_image(rgba, f"/home/luks/james/nerfs/test_images/01-turb-small-{idx:05d}.png")
 
 
-
 def server_render():
     viewport_cam = server.get_viewport_camera(aabb_scale)
+    if viewport_cam is None:
+        return
     rgb, alpha = render_camera(model, viewport_cam)
     w, h = viewport_cam.image_dims
     rgb = np.array(rgb.reshape(w, h, 3).permute(1,0,2).detach().cpu().numpy(), dtype=np.float32)
-    print("rgb dtype:", rgb.dtype)
-    print("rgb shape:", rgb.shape)
-    print("rgb max/min values:", rgb.max(), rgb.min())
     server.set_background_image(rgb)
 
 for i in range(5000):

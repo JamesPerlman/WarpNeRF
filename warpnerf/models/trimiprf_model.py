@@ -3,6 +3,7 @@ import torch
 import warp as wp
 from fvdb import GridBatch
 from torch import Tensor
+from warpnerf.encodings.positional import PositionalEncoding
 from warpnerf.encodings.spherical_harmonics import SHDeg4Encoding
 from warpnerf.models.mlp import MLP
 from warpnerf.models.nerf_model import NeRFModel
@@ -18,7 +19,7 @@ class TrimipRFModel(NeRFModel):
         plane_size: int = 512,
         feature_dim: int = 16,
         geo_feat_dim: int = 15,
-        net_depth_base: int = 2,
+        net_depth_base: int = 8,
         net_depth_color: int = 4,
         net_width: int = 128
     ) -> None:
@@ -34,7 +35,7 @@ class TrimipRFModel(NeRFModel):
 
         self.pos_enc = TriMipEncoding(
             n_levels=n_levels,
-            base_resolution=plane_size,
+            plane_size=plane_size,
             feature_dim=feature_dim,
         )
 
@@ -89,7 +90,7 @@ class TrimipRFModel(NeRFModel):
 
         # encode positions
         contracted_xyz = self.contraction(xyz)
-        encoded_xyz = self.pos_enc(contracted_xyz, vol)
+        encoded_xyz = self.pos_enc(contracted_xyz.view(-1, 3), vol.view(-1, 1))
 
         # run head MLP
         mlp_result = (

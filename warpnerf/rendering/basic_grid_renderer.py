@@ -1,0 +1,72 @@
+import fvdb
+import math
+import torch
+import warp as wp
+from torch import Tensor
+from warpnerf.models.batch import RayBatch, SampleBatch
+from warpnerf.models.gridrf_model import GridRFModel
+from warpnerf.utils.gradient_scaler import GradientScaler
+
+def generate_samples(
+    model: GridRFModel,
+    rays: RayBatch,
+    stratify: bool = False
+) -> SampleBatch:
+
+    ray_ori = wp.to_torch(rays.ori, requires_grad=False)
+    ray_dir = wp.to_torch(rays.dir, requires_grad=False)
+    t_min = torch.zeros(ray_ori.shape[0]).to(ray_ori)
+    t_max = torch.full_like(t_min, fill_value=1e9)
+
+    # pack_info, ray_idx, ray_intervals = model.grid.uniform_ray_samples(ray_ori, ray_dir, t_min, t_max, step_size)
+    ray_intervals = model.grid.uniform_ray_samples(
+        ray_origins=ray_ori,
+        ray_directions=ray_dir,
+        t_min=t_min,
+        t_max=t_max,
+        step_size=model.step_size
+    )        
+    
+    ray_idx = ray_intervals.jidx.int() #ray_idx.jdata
+
+    samples = SampleBatch()
+    
+    samples.pack_info = ray_intervals.joffsets
+    samples.start = ray_intervals.jdata[:, 0]
+    samples.end = ray_intervals.jdata[:, 1]
+    samples.dt = (samples.end - samples.start).contiguous()
+
+    t = ray_intervals.jdata.mean(dim=1)
+    if stratify:
+        samples.t = t + samples.dt * (torch.rand_like(t) - 0.5)
+    else:
+        samples.t = t
+    
+    samples.xyz = ray_ori[ray_idx] + ray_dir[ray_idx] * samples.t[:, None]
+    samples.dir = ray_dir[ray_idx]
+    samples.ray_idx = ray_idx
+
+    return samples
+
+def query_samples(model: GridRFModel, samples: SampleBatch) -> SampleBatch:
+    
+    # query density
+    samples.density = model.query_density(samples.xyz)
+
+    # query color
+    samples.rgb = model.query_rgb(samples.xyz, samples.dir)
+
+    return samples
+
+def render_samples(samples: SampleBatch) -> tuple[Tensor, Tensor, Tensor]:
+    # volume render
+    ray_rgb, ray_depth, ray_opacity, ray_w, ray_num_samples = fvdb.volume_render(
+        sigmas=samples.density,
+        rgbs=samples.rgb,
+        deltaTs=samples.dt,
+        ts=samples.t,
+        packInfo=samples.pack_info,
+        transmittanceThresh=1e-5,
+    )
+
+    return ray_rgb, ray_depth, ray_opacity

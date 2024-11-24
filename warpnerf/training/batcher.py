@@ -19,7 +19,6 @@ def init_training_rays_and_pixels_kernel(
     i = wp.tid()
 
     n_rays = rays_out.count
-    image_idx = (n_images * i) // n_rays
 
     img_w = image_dims[0]
     img_h = image_dims[1]
@@ -27,6 +26,8 @@ def init_training_rays_and_pixels_kernel(
     
     rand_state = wp.rand_init(random_seed)
     rand_pixel_idx = wp.randi(rand_state + wp.uint32(i), 0, n_pixels_per_image)
+    # image_idx = wp.randi(rand_state + wp.uint32(i), 0, n_images)
+    image_idx = (n_images * i) // n_rays
     pixel_x = rand_pixel_idx % img_w
     pixel_y = rand_pixel_idx // img_w
 
@@ -38,8 +39,8 @@ def init_training_rays_and_pixels_kernel(
     ray = get_global_ray_at_pixel_xy(cams_in[image_idx], img_w, img_h, pixel_x, pixel_y)
     rays_out.ori[i] = ray.ori
     rays_out.dir[i] = ray.dir
-    rays_out.cos[i] = ray.cos
-    rays_out.radius[i] = ray.radius
-    rays_out.alive[i] = True
+    # rays_out.cos[i] = ray.cos
+    # rays_out.radius[i] = ray.radius
+    # rays_out.alive[i] = True
     rays_out.t[i] = 0.0
 
