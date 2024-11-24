@@ -13,7 +13,7 @@ class TriMipRFTrainingRenderer(torch.nn.Module):
         ray_dir = wp.to_torch(rays.dir, requires_grad=False)
         t_min = torch.zeros(ray_ori.shape[0]).to(ray_ori)
         t_max = torch.full_like(t_min, fill_value=1e9)
-        step_size = model.aabb_scale * math.sqrt(3.0) / 256.0
+        step_size = model.aabb_scale * math.sqrt(3.0) / 512.0
 
         # pack_info, ray_idx, ray_intervals = model.grid.uniform_ray_samples(ray_ori, ray_dir, t_min, t_max, step_size)
         ray_intervals = model.grid.uniform_ray_samples(
