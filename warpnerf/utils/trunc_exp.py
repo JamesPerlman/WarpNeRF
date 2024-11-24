@@ -11,4 +11,4 @@ class TruncExp(torch.autograd.Function):  # pylint: disable=abstract-method
     @staticmethod
     def backward(ctx, g):
         x = ctx.saved_tensors[0]
-        return g * torch.exp(torch.clamp(x, min=-15, max=15))
+        return g * torch.exp(x.clamp(-15, 15))
