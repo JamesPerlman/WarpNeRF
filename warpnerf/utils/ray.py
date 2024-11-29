@@ -8,18 +8,16 @@ def get_global_ray_at_pixel_xy(
     camera: CameraData,
     img_w: wp.int32,
     img_h: wp.int32,
-    pixel_x: wp.int32,
-    pixel_y: wp.int32,
-    near: wp.float32 = 2.0,
+    pixel_x: wp.float32,
+    pixel_y: wp.float32,
+    near: wp.float32 = 0.0,
 ) -> Ray:
     wf = wp.float32(img_w)
     hf = wp.float32(img_h)
-    xf = wp.float32(pixel_x)
-    yf = wp.float32(pixel_y)
 
     v = wp.vec3f(
-        ((xf + 0.5) / wf - 0.5) * camera.sx / camera.f,
-        ((yf + 0.5) / hf - 0.5) * camera.sy / camera.f,
+        ((pixel_x + 0.5) / wf - 0.5) * camera.sx / camera.f,
+        ((pixel_y + 0.5) / hf - 0.5) * camera.sy / camera.f,
         1.0
     )
     
@@ -51,7 +49,9 @@ def get_rays_for_camera_kernel(
     i, j = wp.tid()
     idx = wp.tid()
 
-    ray = get_global_ray_at_pixel_xy(camera, img_w, img_h, i, j)
+    px = wp.float32(i)
+    py = wp.float32(j)
+    ray = get_global_ray_at_pixel_xy(camera, img_w, img_h, px, py)
 
     rays_out.ori[idx] = ray.ori
     rays_out.dir[idx] = ray.dir

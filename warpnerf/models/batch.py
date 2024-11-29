@@ -32,13 +32,15 @@ def create_ray_batch(count: int, device: str = "cuda") -> RayBatch:
 
 # ew, mixing torch and warp
 class SampleBatch:
+    count: int
     t: Tensor
     dt: Tensor
     xyz: Tensor
     start: Tensor
     end: Tensor
     dir: Tensor
-    pack_info: LongTensor
+    offsets: LongTensor
+    n_samples: LongTensor
     rgb: Tensor
     density: Tensor
     ray_idx: Tensor

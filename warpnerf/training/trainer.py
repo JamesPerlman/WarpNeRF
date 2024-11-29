@@ -21,7 +21,7 @@ class Trainer:
     n_steps_to_subdivide: int = 1000
     max_subdivisions: int = 30
 
-    n_rays_per_batch: int = 4096
+    n_rays_per_batch: int = 16384
 
     def __init__(
         self,
@@ -64,19 +64,19 @@ class Trainer:
 
         loss = torch.nn.functional.smooth_l1_loss(pred_rgb, target_rgb)
 
-        # if self.model.n_subdivisions > 0:
-        #     all_ijk = self.model.grid.ijk.jdata
-        #     n_random_voxels = self.model.grid.total_voxels // 10
-        #     random_ijk = all_ijk[torch.randperm(all_ijk.shape[0])[:n_random_voxels]]
-        #     tv_reg_sh, tv_reg_o = tv_loss(
-        #         grid=self.model.grid,
-        #         ijk=random_ijk,
-        #         features=(self.model.sh_features, self.model.o_features),
-        #         res=self.model.grid_res
-        #     )
+        if self.model.n_subdivisions > 0:
+            all_ijk = self.model.grid.ijk.jdata
+            n_random_voxels = self.model.grid.total_voxels // 100
+            random_ijk = all_ijk[torch.randperm(all_ijk.shape[0])[:n_random_voxels]]
+            tv_reg_sh, tv_reg_o = tv_loss(
+                grid=self.model.grid,
+                ijk=random_ijk,
+                features=(self.model.sh_features, self.model.o_features),
+                res=self.model.grid_res
+            )
 
-        #     tv_reg = 1e-1 * tv_reg_sh + 1e-2 * tv_reg_o
-        #     loss += tv_reg
+            tv_reg = 1e-4 * tv_reg_sh + 1e-4 * tv_reg_o
+            loss += tv_reg
         
         # plenoxels cauchy sparsity loss
         # loss += 1e-5 * cauchy_sparsity_loss(

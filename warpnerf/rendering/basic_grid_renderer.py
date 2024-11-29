@@ -12,7 +12,6 @@ def generate_samples(
     rays: RayBatch,
     stratify: bool = False
 ) -> SampleBatch:
-
     ray_ori = wp.to_torch(rays.ori, requires_grad=False)
     ray_dir = wp.to_torch(rays.dir, requires_grad=False)
     t_min = torch.zeros(ray_ori.shape[0]).to(ray_ori)
@@ -31,7 +30,16 @@ def generate_samples(
 
     samples = SampleBatch()
     
-    samples.pack_info = ray_intervals.joffsets
+    samples.offsets = ray_intervals.joffsets
+    n_samples = ray_intervals.joffsets[1:] - ray_intervals.joffsets[:-1]
+    samples.count = ray_intervals.jdata.shape[0]
+
+    #last element is the number of samples in the last ray
+    samples.n_samples = torch.cat([
+        n_samples,
+        torch.tensor([samples.count - samples.offsets[-1]]).to(n_samples.device)
+    ])
+
     samples.start = ray_intervals.jdata[:, 0]
     samples.end = ray_intervals.jdata[:, 1]
     samples.dt = (samples.end - samples.start).contiguous()
@@ -49,7 +57,7 @@ def generate_samples(
     return samples
 
 def query_samples(model: GridRFModel, samples: SampleBatch) -> SampleBatch:
-    
+
     # query density
     samples.density = model.query_density(samples.xyz)
 
@@ -65,7 +73,7 @@ def render_samples(samples: SampleBatch) -> tuple[Tensor, Tensor, Tensor]:
         rgbs=samples.rgb,
         deltaTs=samples.dt,
         ts=samples.t,
-        packInfo=samples.pack_info,
+        packInfo=samples.offsets,
         transmittanceThresh=1e-5,
     )
 

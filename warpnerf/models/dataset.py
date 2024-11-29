@@ -64,6 +64,13 @@ class Dataset:
             self._image_dims = self.training_cameras[0].image_dims
         
         return self._image_dims
+
+    @property
+    def num_pixels_total(self) -> int:
+        assert self.is_loaded, "Dataset not loaded"
+
+        img_w, img_h = self.image_dims
+        return img_w * img_h * self.num_images
     
     @property
     def camera_data(self) -> wp.array1d(dtype=CameraData):
@@ -179,7 +186,8 @@ class Dataset:
         scene_center = 0.5 * (scene_bbox.min + scene_bbox.max)
         scene_extent = scene_bbox.max - scene_bbox.min
         scene_max_extent = max(scene_extent.x, scene_extent.y, scene_extent.z)
-        scale = 1.0 / scene_max_extent * aabb_scale
+        aabb_extent = aabb_scale / 2.0
+        scale = 1.0 / scene_max_extent * aabb_extent
 
         for camera in self.training_cameras:
             camera.camera_data.t = scale * (camera.camera_data.t - scene_center)
@@ -194,15 +202,18 @@ class Dataset:
         batch = create_ray_batch(n_rays, device=device)
         rgba = wp.empty(shape=(4, n_rays), dtype=wp.uint8, device=device)
 
+        pixel_indices = wp.array(np.random.choice(self.num_pixels_total, n_rays), dtype=wp.int32, device=device)
+        random_xy_noise = wp.array(np.random.ranf((n_rays, 2)), dtype=wp.float32, device=device)
+
         wp.launch(
             init_training_rays_and_pixels_kernel,
             dim=n_rays,
             inputs=[
-                random_seed,
-                self.num_images,
                 self.image_dims,
                 self.camera_data,
                 self.image_data,
+                pixel_indices,
+                random_xy_noise,
             ],
             outputs=[
                 batch,
