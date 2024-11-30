@@ -59,40 +59,64 @@ model.on_subdivide_grid = update_optimizer
 server = VisualizationServer()
 server.set_dataset(dataset)
 
-def render_camera(model, camera: TrainingCamera, img_w = None, img_h = None):
+def render_camera(model, camera: TrainingCamera, img_w=None, img_h=None):
     if img_w is None:
         img_w, img_h = camera.image_dims
     
-    n_pixels = img_w * img_h
-    rays = create_ray_batch(n_pixels)
-    wp.launch(
-        kernel=get_rays_for_camera_kernel,
-        dim=(img_w, img_h),
-        inputs=[
-            camera.camera_data,
-            img_w,
-            img_h,
-        ],
-        outputs=[
-            rays
-        ],
-    )
+    n_pixels_per_chunk = 16384
+    n_pixels_in_image = img_w * img_h
+    n_chunks = (n_pixels_in_image + n_pixels_per_chunk - 1) // n_pixels_per_chunk
 
-    samples = generate_samples(model, rays)
-    samples = query_samples(model, samples)
-    rgb, depth, alpha = render_samples(samples)
+    rays = create_ray_batch(n_pixels_per_chunk)
+
+    # Preallocate tensors for RGB and alpha
+    rgb = torch.empty((n_pixels_in_image, 3), dtype=torch.float32)
+    alpha = torch.empty((n_pixels_in_image,), dtype=torch.float32)
+
+    for i in range(n_chunks):
+        pixel_offset = i * n_pixels_per_chunk
+        n_pixels_in_this_chunk = min(n_pixels_per_chunk, n_pixels_in_image - pixel_offset)
+        
+        if rays.count != n_pixels_in_this_chunk:
+            
+            rays = create_ray_batch(n_pixels_in_this_chunk)
+        
+        wp.launch(
+            kernel=get_rays_for_camera_kernel,
+            dim=rays.count,
+            inputs=[
+                camera.camera_data,
+                img_w,
+                img_h,
+                pixel_offset,
+            ],
+            outputs=[
+                rays
+            ],
+        )
+
+        samples = generate_samples(model, rays)
+        samples = query_samples(model, samples)
+        
+        rgb_chunk, depth_chunk, alpha_chunk = render_samples(samples)
+
+        # Copy chunks into preallocated tensors
+        rgb[pixel_offset:pixel_offset + n_pixels_in_this_chunk] = rgb_chunk
+        alpha[pixel_offset:pixel_offset + n_pixels_in_this_chunk] = alpha_chunk
+
     return rgb, alpha
 
 
 def save_img(model, camera: TrainingCamera, idx: int):
 
     img_w, img_h = camera.image_dims
-    img_w = img_w // 10
-    img_h = img_h // 10
 
     rgb, alpha = render_camera(model, camera, img_w, img_h)
     a = (alpha * 255).to(dtype=torch.uint8)
     rgb = (rgb * 255).to(dtype=torch.uint8)
+
+    print(rgb.shape)
+    print(a.unsqueeze(-1).shape)
 
     rgba = torch.cat([rgb, a.unsqueeze(-1)], dim=1).reshape(img_w, img_h, 4)
     rgba = rgba.permute(2, 0, 1)

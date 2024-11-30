@@ -86,11 +86,12 @@ def hello_fvdb():
         rays = create_ray_batch(w * h)
         wp.launch(
             kernel=get_rays_for_camera_kernel,
-            dim=(w, h),
+            dim=w * h,
             inputs=[
                 camera.camera_data,
                 w,
-                h
+                h,
+                0
             ],
             outputs=[
                 rays

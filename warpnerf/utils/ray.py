@@ -44,13 +44,13 @@ def get_rays_for_camera_kernel(
     camera: CameraData,
     img_w: wp.int32,
     img_h: wp.int32,
+    offset: wp.int32,
     rays_out: RayBatch,
 ):
-    i, j = wp.tid()
     idx = wp.tid()
-
-    px = wp.float32(i)
-    py = wp.float32(j)
+    i = idx + offset
+    px = wp.float32(i // img_h)
+    py = wp.float32(i % img_h)
     ray = get_global_ray_at_pixel_xy(camera, img_w, img_h, px, py)
 
     rays_out.ori[idx] = ray.ori
