@@ -21,7 +21,7 @@ class Trainer:
     n_steps_to_subdivide: int = 1000
     max_subdivisions: int = 30
 
-    n_rays_per_batch: int = 16384
+    n_rays_per_batch: int = 4096
 
     def __init__(
         self,

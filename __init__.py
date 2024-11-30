@@ -63,7 +63,7 @@ def render_camera(model, camera: TrainingCamera, img_w=None, img_h=None):
     if img_w is None:
         img_w, img_h = camera.image_dims
     
-    n_pixels_per_chunk = 16384
+    n_pixels_per_chunk = 65536
     n_pixels_in_image = img_w * img_h
     n_chunks = (n_pixels_in_image + n_pixels_per_chunk - 1) // n_pixels_per_chunk
 
@@ -114,9 +114,6 @@ def save_img(model, camera: TrainingCamera, idx: int):
     rgb, alpha = render_camera(model, camera, img_w, img_h)
     a = (alpha * 255).to(dtype=torch.uint8)
     rgb = (rgb * 255).to(dtype=torch.uint8)
-
-    print(rgb.shape)
-    print(a.unsqueeze(-1).shape)
 
     rgba = torch.cat([rgb, a.unsqueeze(-1)], dim=1).reshape(img_w, img_h, 4)
     rgba = rgba.permute(2, 0, 1)
