@@ -42,5 +42,6 @@ class SampleBatch:
     offsets: LongTensor
     n_samples: LongTensor
     rgb: Tensor
-    density: Tensor
+    sigma: Tensor
+    geo_feat: Tensor
     ray_idx: Tensor

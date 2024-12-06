@@ -81,9 +81,9 @@ class GridRFModel(NeRFModel):
 
     @property
     def step_size(self) -> float:
-        return (self.aabb_scale * math.sqrt(3.0) / 512.0) / (2 ** self.n_subdivisions)
+        return self.aabb_scale * math.sqrt(3.0) / (2 * self.grid_res)
     
-    def query_density(
+    def query_sigma(
         self,
         xyz: Tensor
     ) -> Tensor:
@@ -113,7 +113,7 @@ class GridRFModel(NeRFModel):
     def subdivide_grid(self, density_thresh: float = 0.25) -> None:
         vox_ijk = self.grid.ijk.jdata
         vox_xyz = self.grid.grid_to_world(vox_ijk.to(torch.float32)).jdata
-        vox_density = self.query_density(vox_xyz)
+        vox_density = self.query_sigma(vox_xyz)
 
         density_mask = vox_density > density_thresh
 

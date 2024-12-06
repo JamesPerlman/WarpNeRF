@@ -11,7 +11,8 @@ from warpnerf.models.camera import TrainingCamera
 from warpnerf.models.gridrf_model import GridRFModel
 from warpnerf.models.trimiprf_model import TrimipRFModel
 from warpnerf.models.dataset import Dataset, DatasetType
-from warpnerf.rendering.basic_grid_renderer import generate_samples, render_samples, query_samples
+from warpnerf.models.warpnerf_model import WarpNeRFModel
+from warpnerf.rendering.nerf_renderer import generate_samples, render_samples, query_samples
 from warpnerf.server.visualization import VisualizationServer
 from warpnerf.training.trainer import Trainer
 from warpnerf.utils.image import save_image
@@ -34,17 +35,17 @@ wp.init()
 # print(random_vec3s)
 # print(contracted_vec3s)
 # exit()
-dataset = Dataset(path=Path("/home/luks/james/nerfs/turb-small"), type=DatasetType.BUNDLER)
-# dataset = Dataset(
-#     path=Path("/home/luks/james/nerfs/nerf_synthetic/lego/transforms_train.json"),
-#     type=DatasetType.TRANSFORMS_JSON,
-# )
+# dataset = Dataset(path=Path("/home/luks/james/nerfs/turb-small"), type=DatasetType.BUNDLER)
+dataset = Dataset(
+    path=Path("/home/luks/james/nerfs/nerf_synthetic/lego/transforms_train.json"),
+    type=DatasetType.TRANSFORMS_JSON,
+)
 dataset.load()
 scene_extent = dataset.scene_bounding_box.max - dataset.scene_bounding_box.min
-aabb_scale = 8 #max(scene_extent.x, scene_extent.y, scene_extent.z)
-dataset.resize_and_center(aabb_scale=2.0)
+aabb_scale = 4 #max(scene_extent.x, scene_extent.y, scene_extent.z)
+dataset.resize_and_center(aabb_scale=aabb_scale)
 
-model = GridRFModel(aabb_scale=aabb_scale)
+model = WarpNeRFModel(aabb_scale=aabb_scale)
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-1)
 trainer = Trainer(dataset, model, optimizer)
 
@@ -96,6 +97,10 @@ def render_camera(model, camera: TrainingCamera, img_w=None, img_h=None):
         )
 
         samples = generate_samples(model, rays)
+        
+        if samples.count == 0:
+            continue
+
         samples = query_samples(model, samples)
         
         rgb_chunk, depth_chunk, alpha_chunk = render_samples(samples)
@@ -110,6 +115,8 @@ def render_camera(model, camera: TrainingCamera, img_w=None, img_h=None):
 def save_img(model, camera: TrainingCamera, idx: int):
 
     img_w, img_h = camera.image_dims
+    img_w = img_w // 4
+    img_h = img_h // 4
 
     rgb, alpha = render_camera(model, camera, img_w, img_h)
     a = (alpha * 255).to(dtype=torch.uint8)
@@ -130,10 +137,10 @@ def server_render():
     rgb = np.array(rgb.reshape(w, h, 3).permute(1,0,2).detach().cpu().numpy(), dtype=np.float32)
     server.set_background_image(rgb)
 
-for i in range(5000):
+for i in range(2000):
     trainer.step()
 
-    if i % 10 == 0:
+    if i % 25 == 0:
         server_render()
 
     if i % 100 == 0:

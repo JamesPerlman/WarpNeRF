@@ -1,14 +1,12 @@
 import fvdb
-import math
 import torch
 import warp as wp
 from torch import Tensor
 from warpnerf.models.batch import RayBatch, SampleBatch
-from warpnerf.models.gridrf_model import GridRFModel
-from warpnerf.utils.gradient_scaler import GradientScaler
+from warpnerf.models.warpnerf_model import WarpNeRFModel
 
 def generate_samples(
-    model: GridRFModel,
+    model: WarpNeRFModel,
     rays: RayBatch,
     stratify: bool = False
 ) -> SampleBatch:
@@ -24,7 +22,7 @@ def generate_samples(
         t_min=t_min,
         t_max=t_max,
         step_size=model.step_size
-    )        
+    )
     
     ray_idx = ray_intervals.jidx.int() #ray_idx.jdata
 
@@ -56,13 +54,13 @@ def generate_samples(
 
     return samples
 
-def query_samples(model: GridRFModel, samples: SampleBatch) -> SampleBatch:
+def query_samples(model: WarpNeRFModel, samples: SampleBatch) -> SampleBatch:
 
     # query density
-    samples.sigma = model.query_sigma(samples.xyz)
+    samples.sigma, geo_feat = model.query_sigma(samples.xyz, return_feat=True)
 
     # query color
-    samples.rgb = model.query_rgb(samples.xyz, samples.dir)
+    samples.rgb = model.query_rgb(samples.dir, geo_feat)
 
     return samples
 

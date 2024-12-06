@@ -39,8 +39,8 @@ def init_training_rays_and_pixels_kernel(
     rgba_out[2][i] = rgba_in[image_idx][2][pixel_x][pixel_y]
     rgba_out[3][i] = rgba_in[image_idx][3][pixel_x][pixel_y]
 
-    px = wp.float32(pixel_x) + rand_xy[i][0] - 0.5
-    py = wp.float32(pixel_y) + rand_xy[i][1] - 0.5
+    px = wp.float32(pixel_x)
+    py = wp.float32(pixel_y)
 
     ray = get_global_ray_at_pixel_xy(cams_in[image_idx], img_w, img_h, px, py)
     rays_out.ori[i] = ray.ori

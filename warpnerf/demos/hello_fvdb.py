@@ -6,6 +6,7 @@ import warp as wp
 
 from warpnerf.models.batch import create_ray_batch
 from warpnerf.models.camera import TrainingCamera
+from warpnerf.models.cascaded_occupancy_grid import CascadedOccupancyGrid
 from warpnerf.server.visualization import VisualizationServer
 
 import numpy as np
@@ -32,6 +33,13 @@ def generate_density_features(grid: GridBatch, grid_shape: list[int], value: flo
 
     return density_features
 
+def generate_occ_grid_density_feats(grid: CascadedOccupancyGrid) -> torch.Tensor:
+    return torch.ones((grid.total_voxels, 1), device=grid.device)
+
+def generate_occ_grid_rgb_feats(grid: CascadedOccupancyGrid) -> torch.Tensor:
+    num_voxels = grid.total_voxels
+    rgb_feats = torch.ones((num_voxels, 3), device=grid.device)
+    return rgb_feats
 
 def generate_rgb_features(grid: GridBatch, grid_shape: list[int]) -> torch.Tensor:
     # Assuming grid_batch has num_voxels as a list of voxel counts along each axis.
@@ -64,20 +72,33 @@ def hello_fvdb():
     server = VisualizationServer()
 
     # initialize grid
-    grid = GridBatch(device="cuda")
-    grid_res = 8
-    aabb_scale = 16.0
-    grid_shape = [grid_res] * 3
-    grid.set_from_dense_grid(
-        num_grids=1,
-        dense_dims=grid_shape,
-        ijk_min=[0] * 3,
-        voxel_sizes=aabb_scale / grid_res,
-        origins=[0.5 * aabb_scale * (1.0 / grid_res - 1.0)] * 3
+    aabb_scale = 4.0
+    grid = CascadedOccupancyGrid(
+        aabb_scale_roi=aabb_scale,
+        n_levels=3,
+        resolution_roi=128,
+        device="cuda"
     )
+    rgb_feats = generate_occ_grid_rgb_feats(grid)
+    alpha_feats = generate_occ_grid_density_feats(grid)
+    step_size = np.sqrt(3.0) * grid.smallest_voxel_size
 
-    rgb_feats = generate_rgb_features(grid, grid_shape)
-    alpha_feats = generate_density_features(grid, grid_shape, 1.0)
+    # grid = GridBatch(device="cuda")
+    # grid_res = 8
+    # grid_shape = [grid_res] * 3
+    # grid.set_from_dense_grid(
+    #     num_grids=1,
+    #     dense_dims=grid_shape,
+    #     ijk_min=[0] * 3,
+    #     voxel_sizes=aabb_scale / grid_res,
+    #     origins=[0.5 * aabb_scale * (1.0 / grid_res - 1.0)] * 3
+    # )
+
+    # step_size = aabb_scale * np.sqrt(3.0) / grid_res
+
+    # rgb_feats = generate_rgb_features(grid, grid_shape)
+    # alpha_feats = generate_density_features(grid, grid_shape, 1.0)
+
     print(rgb_feats.shape)
     print(alpha_feats.shape)
 
@@ -100,7 +121,6 @@ def hello_fvdb():
 
         ray_ori = wp.to_torch(rays.ori, requires_grad=False)
         ray_dir = wp.to_torch(rays.dir, requires_grad=False)
-        step_size = aabb_scale * np.sqrt(3.0) / grid_res
         t_min = torch.zeros(ray_ori.shape[0]).to(ray_ori)
         t_max = torch.full_like(t_min, fill_value=1e9)
 

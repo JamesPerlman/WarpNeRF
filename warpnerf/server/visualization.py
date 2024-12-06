@@ -49,9 +49,8 @@ class VisualizationServer:
         cam_data = CameraData()
         fov = viser_cam.fov
         focal_len = 0.5 / math.tan(fov / 2)
-        H = 512
+        H = 256
         W = H * viser_cam.aspect
-        print("fov", fov)
         cam_data.f = focal_len
         cam_data.sx = viser_cam.aspect
         cam_data.sy = 1.0

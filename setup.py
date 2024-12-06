@@ -17,6 +17,7 @@ setup(
     ],
     dependency_links=[
         'https://download.pytorch.org/whl/cu124',
+        'git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch',
     ],
     entry_points='''
         [console_scripts]

@@ -1,5 +1,4 @@
 import torch
-import warp as wp
 from fvdb import GridBatch
 from warpnerf.models.mlp import MLP
 
