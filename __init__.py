@@ -35,27 +35,20 @@ wp.init()
 # print(random_vec3s)
 # print(contracted_vec3s)
 # exit()
-# dataset = Dataset(path=Path("/home/luks/james/nerfs/turb-small"), type=DatasetType.BUNDLER)
-dataset = Dataset(
-    path=Path("/home/luks/james/nerfs/nerf_synthetic/lego/transforms_train.json"),
-    type=DatasetType.TRANSFORMS_JSON,
-)
+dataset = Dataset(path=Path("/home/luks/james/nerfs/turb-small"), type=DatasetType.BUNDLER)
+# dataset = Dataset(
+#     path=Path("/home/luks/james/nerfs/nerf_synthetic/lego/transforms_train.json"),
+#     type=DatasetType.TRANSFORMS_JSON,
+# )
 dataset.load()
 scene_extent = dataset.scene_bounding_box.max - dataset.scene_bounding_box.min
 aabb_scale = 4 #max(scene_extent.x, scene_extent.y, scene_extent.z)
 dataset.resize_and_center(aabb_scale=aabb_scale)
 
 model = WarpNeRFModel(aabb_scale=aabb_scale)
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-1)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
+scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9995)
 trainer = Trainer(dataset, model, optimizer)
-
-def update_optimizer(model):
-    global optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-1)
-    global trainer
-    trainer.opt = optimizer
-
-model.on_subdivide_grid = update_optimizer
 
 server = VisualizationServer()
 server.set_dataset(dataset)
@@ -139,6 +132,7 @@ def server_render():
 
 for i in range(2000):
     trainer.step()
+    scheduler.step()
 
     if i % 25 == 0:
         server_render()
