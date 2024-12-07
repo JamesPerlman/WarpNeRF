@@ -1,4 +1,5 @@
 import math
+from typing import Tuple, Union
 import tinycudann as tcnn
 import torch
 
@@ -45,15 +46,16 @@ class WarpNeRFModel(torch.nn.Module):
 
         # initialize grid
         self.grid_res = 256
-        self.grid = GridBatch(device)
+        self.grid = GridBatch(device, mutable=True)
         self.grid.set_from_dense_grid(
             num_grids=1,
             dense_dims=[self.grid_res] * 3,
             ijk_min=[0] * 3,
-            voxel_sizes=self.aabb_scale / self.grid_res,
+            voxel_sizes=self.voxel_size,
             origins=[0.5 * self.aabb_scale * (1.0 / self.grid_res - 1.0)] * 3
         )
-        
+        self.grid_sigma = None
+
         # density network with hash encoding
         num_levels = 16
         min_res = 16
@@ -110,20 +112,25 @@ class WarpNeRFModel(torch.nn.Module):
         )
     
     @property
+    def voxel_size(self) -> float:
+        return self.aabb_scale / self.grid_res
+
+    @property
     def step_size(self) -> float:
-        return self.aabb_scale * math.sqrt(3.0) / (2 * self.grid_res)
+        return self.voxel_size * math.sqrt(3.0) / 2.0
 
     def query_sigma(
         self,
         xyz: Tensor,
         return_feat: bool = False
-    ) -> Tensor:
+    ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
         xyz_in = torch.clamp(xyz / self.aabb_scale + 0.5, 0.0, 1.0)
         density_output = self.mlp_base(xyz_in)
         d_raw, feat = density_output.split([1, 15], dim=-1)
+        
         d_raw = d_raw.squeeze(-1)
         feat = feat.squeeze(-1)
-    
+
         sigma = self.density_activation(d_raw.float())
 
         if return_feat:
@@ -143,3 +150,26 @@ class WarpNeRFModel(torch.nn.Module):
         color_out = self.mlp_head(color_in).float()
 
         return color_out
+    
+    def update_grid_occupancy(self, threshold: float = 0.01, decay_rate: float = 0.95):
+        vox_ijk = self.grid.ijk.jdata
+        voxel_centers = self.grid.grid_to_world(vox_ijk.to(torch.float32)).jdata
+        random_offsets = torch.rand_like(voxel_centers) - 0.5
+        xyz = voxel_centers + random_offsets * self.voxel_size
+        sigma = self.query_sigma(xyz, return_feat=False)
+        
+        if self.grid_sigma is None:
+            self.grid_sigma = sigma.detach()
+        else:
+            self.grid_sigma = torch.max(decay_rate * self.grid_sigma, sigma.detach())
+        over_thresh = torch.where(self.grid_sigma >= threshold)
+        under_thresh = torch.where(self.grid_sigma < threshold)
+        self.grid.enable_ijk(vox_ijk[over_thresh])
+        self.grid.disable_ijk(vox_ijk[under_thresh])
+        print("turned on", over_thresh[0].sum().item(), "voxels")
+        n_off = under_thresh[0].sum().item()
+        print("turned off", n_off, "voxels")
+        
+        print(f"the grid is {100 * (self.grid.total_enabled_voxels / self.grid.total_voxels)}% occupied")
+
+        
