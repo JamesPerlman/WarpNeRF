@@ -1,3 +1,4 @@
+import math
 import fvdb
 import torch
 import warp as wp
@@ -86,7 +87,7 @@ class Trainer:
         #     loss += tv_reg
         
         # distortion loss
-        distortion_loss_lambda = 1.0
+        # distortion_loss_lambda = 1e-5
         # loss += MipNeRF360DistortionLoss.apply(
         #     distortion_loss_lambda,
         #     samples.n_samples,
@@ -104,9 +105,12 @@ class Trainer:
         #     samples=samples,
         # )
         loss.backward()
-#        self.grad_scaler.scale(loss).backward()
+        # self.grad_scaler.scale(loss).backward()
         self.opt.step()
         self.n_steps += 1
+
+        if self.n_steps % 16 == 0 and self.n_steps > 256:
+            self.model.update_grid_occupancy(threshold=0.01 * self.model.grid_res / math.sqrt(3))
 
         # if self.n_steps % self.n_steps_to_subdivide == 0 and self.n_steps > 0 and self.model.n_subdivisions < 4:
         #     self.model.subdivide_grid()
