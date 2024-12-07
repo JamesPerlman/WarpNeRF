@@ -118,8 +118,8 @@ class WarpNeRFModel(torch.nn.Module):
         xyz: Tensor,
         return_feat: bool = False
     ) -> Tensor:
-
-        density_output = self.mlp_base(xyz / self.aabb_scale)
+        xyz_in = torch.clamp(xyz / self.aabb_scale + 0.5, 0.0, 1.0)
+        density_output = self.mlp_base(xyz_in)
         d_raw, feat = density_output.split([1, 15], dim=-1)
         d_raw = d_raw.squeeze(-1)
         feat = feat.squeeze(-1)
@@ -136,9 +136,9 @@ class WarpNeRFModel(torch.nn.Module):
         dir: Tensor,
         density_feat: Tensor
     ) -> Tensor:
-        dir_in = (dir + 1.0) / 2.0
-        dir_out = self.dir_enc(dir_in)
-        color_in = torch.cat([density_feat, dir_out], dim=-1)
+        dir_norm = (dir + 1.0) / 2.0
+        dir_encoded = self.dir_enc(dir_norm)
+        color_in = torch.cat([density_feat, dir_encoded], dim=-1)
 
         color_out = self.mlp_head(color_in).float()
 
