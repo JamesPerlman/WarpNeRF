@@ -7,8 +7,8 @@ from warpnerf.losses.cauchy_sparsity_loss import cauchy_sparsity_loss
 from warpnerf.losses.mipnerf360_distortion import MipNeRF360DistortionLoss
 from warpnerf.losses.tv_loss import tv_loss
 from warpnerf.models.dataset import Dataset
-from warpnerf.models.gridrf_model import NeRFModel
 from warpnerf.models.mlp import MLP
+from warpnerf.models.warpnerf_model import WarpNeRFModel
 from warpnerf.rendering.nerf_renderer import generate_samples, query_samples, render_samples
 from warpnerf.utils.gradient_scaler import GradientScaler
 
@@ -28,13 +28,14 @@ class Trainer:
     def __init__(
         self,
         dataset: Dataset,
-        model: NeRFModel,
+        model: WarpNeRFModel,
         optimizer: torch.optim.Optimizer,
     ):
         self.dataset = dataset
         self.model = model
         self.opt = optimizer
         self.grad_scaler = torch.amp.GradScaler()
+        self.model.update_nonvisible_voxel_mask(self.dataset.camera_data)
     
     def step(self):
         self.opt.zero_grad()
@@ -112,7 +113,8 @@ class Trainer:
         if self.n_steps % 16 == 0 and self.n_steps > 256:
             self.model.update_grid_occupancy(threshold=0.01 * self.model.grid_res / math.sqrt(3))
 
-        # if self.n_steps % self.n_steps_to_subdivide == 0 and self.n_steps > 0 and self.model.n_subdivisions < 4:
-        #     self.model.subdivide_grid()
+        if self.n_steps % self.n_steps_to_subdivide == 0 and self.n_steps > 0 and self.model.n_subdivisions < 5:
+            self.model.subdivide_grid()
+            self.model.update_nonvisible_voxel_mask(self.dataset.camera_data)
 
         print(f"the loss is {loss}, the step is {self.n_steps}")

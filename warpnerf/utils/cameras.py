@@ -38,7 +38,6 @@ def get_global_ray_at_pixel_xy(
 
     return ray
 
-
 @wp.kernel
 def get_rays_for_camera_kernel(
     camera: CameraData,
@@ -57,3 +56,37 @@ def get_rays_for_camera_kernel(
     rays_out.dir[idx] = ray.dir
     # rays_out.cos[idx] = ray.cos
     # rays_out.radius[idx] = ray.radius
+
+@wp.kernel(enable_backward=False)
+def increment_point_visibility_kernel(
+    cameras: wp.array1d(dtype=CameraData),
+    points: wp.array1d(dtype=wp.vec3f),
+    visibilities: wp.array1d(dtype=wp.int32),
+):
+    idx = wp.tid()
+    point = points[idx]
+
+    for i in range(cameras.shape[0]):
+        
+        camera = cameras[i]
+        
+        # transform point to camera space
+        point_cam = wp.mul(camera.R, point - camera.t)
+
+        if point_cam.z <= 0.0:
+            continue
+        
+        # project point to 2D
+
+        point_2d = wp.vec2f(
+            camera.f * point_cam.x / point_cam.z,
+            camera.f * point_cam.y / point_cam.z
+        )
+
+        # check if point is visible
+        
+        if wp.abs(point_2d.x) > camera.sx or wp.abs(point_2d.y) > camera.sy:
+            continue
+        
+        visibilities[idx] += 1
+

@@ -2,7 +2,7 @@ import warp as wp
 
 from warpnerf.models.batch import RayBatch
 from warpnerf.models.camera import CameraData
-from warpnerf.utils.ray import get_global_ray_at_pixel_xy
+from warpnerf.utils.cameras import get_global_ray_at_pixel_xy
 
 # Batcher generates batches of data for training and evaluation.
 
@@ -42,7 +42,10 @@ def init_training_rays_and_pixels_kernel(
     px = wp.float32(pixel_x)
     py = wp.float32(pixel_y)
 
-    ray = get_global_ray_at_pixel_xy(cams_in[image_idx], img_w, img_h, px, py)
+    rand_x = rand_xy[i][0]
+    rand_y = rand_xy[i][1]
+
+    ray = get_global_ray_at_pixel_xy(cams_in[image_idx], img_w, img_h, px + rand_x - 0.5, py + rand_y - 0.5)
     rays_out.ori[i] = ray.ori
     rays_out.dir[i] = ray.dir
     # rays_out.cos[i] = ray.cos

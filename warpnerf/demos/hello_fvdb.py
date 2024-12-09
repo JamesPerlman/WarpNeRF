@@ -11,7 +11,7 @@ from warpnerf.server.visualization import VisualizationServer
 
 import numpy as np
 
-from warpnerf.utils.ray import get_rays_for_camera_kernel
+from warpnerf.utils.cameras import get_rays_for_camera_kernel
 
 def generate_debug_image(width, height):
     # Create an empty 3D array with dimensions (height, width, 3)

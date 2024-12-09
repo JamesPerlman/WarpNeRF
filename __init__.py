@@ -16,7 +16,7 @@ from warpnerf.rendering.nerf_renderer import generate_samples, render_samples, q
 from warpnerf.server.visualization import VisualizationServer
 from warpnerf.training.trainer import Trainer
 from warpnerf.utils.image import save_image
-from warpnerf.utils.ray import get_rays_for_camera_kernel
+from warpnerf.utils.cameras import get_rays_for_camera_kernel
 
 wp.init()
 
@@ -35,17 +35,18 @@ wp.init()
 # print(random_vec3s)
 # print(contracted_vec3s)
 # exit()
-dataset = Dataset(path=Path("/home/luks/james/nerfs/turb-small"), type=DatasetType.BUNDLER)
-# dataset = Dataset(
-#     path=Path("/home/luks/james/nerfs/nerf_synthetic/lego/transforms_train.json"),
-#     type=DatasetType.TRANSFORMS_JSON,
-# )
+# dataset = Dataset(path=Path("/home/luks/james/nerfs/turb-small"), type=DatasetType.BUNDLER)
+dataset = Dataset(
+    path=Path("/home/luks/james/nerfs/nerf_synthetic/lego/transforms_train.json"),
+    type=DatasetType.TRANSFORMS_JSON,
+)
 dataset.load()
 scene_extent = dataset.scene_bounding_box.max - dataset.scene_bounding_box.min
-aabb_scale = 4 #max(scene_extent.x, scene_extent.y, scene_extent.z)
-dataset.resize_and_center(aabb_scale=aabb_scale)
+aabb_scale = 3 #max(scene_extent.x, scene_extent.y, scene_extent.z)
+# dataset.resize_and_center(aabb_scale=aabb_scale)
 
 model = WarpNeRFModel(aabb_scale=aabb_scale)
+
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
 scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9995)
 trainer = Trainer(dataset, model, optimizer)
@@ -64,8 +65,8 @@ def render_camera(model, camera: TrainingCamera, img_w=None, img_h=None):
     rays = create_ray_batch(n_pixels_per_chunk)
 
     # Preallocate tensors for RGB and alpha
-    rgb = torch.empty((n_pixels_in_image, 3), dtype=torch.float32)
-    alpha = torch.empty((n_pixels_in_image,), dtype=torch.float32)
+    rgb = torch.zeros((n_pixels_in_image, 3), dtype=torch.float32)
+    alpha = torch.zeros((n_pixels_in_image,), dtype=torch.float32)
 
     for i in range(n_chunks):
         pixel_offset = i * n_pixels_per_chunk
@@ -130,7 +131,7 @@ def server_render():
     rgb = np.array(rgb.reshape(w, h, 3).permute(1,0,2).detach().cpu().numpy(), dtype=np.float32)
     server.set_background_image(rgb)
 
-for i in range(2000):
+for i in range(10000):
     trainer.step()
     scheduler.step()
 

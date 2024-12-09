@@ -2,14 +2,17 @@ import math
 from typing import Tuple, Union
 import tinycudann as tcnn
 import torch
+import warp as wp
 
 from torch import Tensor
 from fvdb import GridBatch
 
 from warpnerf.encodings.spherical_harmonics import SHDeg4Encoding
+from warpnerf.models.camera import CameraData
 from warpnerf.models.cascaded_occupancy_grid import CascadedOccupancyGrid
 from warpnerf.models.mlp import MLP
 from warpnerf.models.nerf_model import NeRFModel
+from warpnerf.utils.cameras import increment_point_visibility_kernel
 from warpnerf.utils.merf_contraction import MERFContraction
 from warpnerf.utils.spherical_harmonics import evaluate_sh, evaluate_sh_bases
 from warpnerf.utils.trunc_exp import TruncExp
@@ -45,7 +48,6 @@ class WarpNeRFModel(torch.nn.Module):
         # )
 
         # initialize grid
-        self.grid_res = 256
         self.grid = GridBatch(device, mutable=True)
         self.grid.set_from_dense_grid(
             num_grids=1,
@@ -112,6 +114,10 @@ class WarpNeRFModel(torch.nn.Module):
         )
     
     @property
+    def grid_res(self) -> int:
+        return 256 * (2 ** self.n_subdivisions)
+
+    @property
     def voxel_size(self) -> float:
         return self.aabb_scale / self.grid_res
 
@@ -162,14 +168,42 @@ class WarpNeRFModel(torch.nn.Module):
             self.grid_sigma = sigma.detach()
         else:
             self.grid_sigma = torch.max(decay_rate * self.grid_sigma, sigma.detach())
-        over_thresh = torch.where(self.grid_sigma >= threshold)
-        under_thresh = torch.where(self.grid_sigma < threshold)
-        self.grid.enable_ijk(vox_ijk[over_thresh])
-        self.grid.disable_ijk(vox_ijk[under_thresh])
-        print("turned on", over_thresh[0].sum().item(), "voxels")
-        n_off = under_thresh[0].sum().item()
-        print("turned off", n_off, "voxels")
+
+        enable_mask = self.grid_sigma >= threshold
+        if self.nonvisible_voxel_mask is not None:
+            enable_mask = enable_mask & ~self.nonvisible_voxel_mask
+
+        disable_mask = ~enable_mask
+        self.occupancy_mask = enable_mask
+
+        # self.grid.enable_ijk(vox_ijk[enable_mask])
+        self.grid.disable_ijk(vox_ijk[disable_mask])
         
         print(f"the grid is {100 * (self.grid.total_enabled_voxels / self.grid.total_voxels)}% occupied")
 
-        
+    def subdivide_grid(self):
+        new_grid_sigma, new_grid = self.grid.subdivide(2, self.grid_sigma.unsqueeze(-1), mask=self.occupancy_mask)
+        self.grid_sigma = new_grid_sigma.jdata.squeeze(-1)
+        self.grid = new_grid
+        self.n_subdivisions += 1
+
+    def update_nonvisible_voxel_mask(self, cameras: wp.array1d(dtype=CameraData)):
+        vox_ijk = self.grid.ijk.jdata
+        voxel_centers = self.grid.grid_to_world(vox_ijk.to(torch.float32)).jdata
+        voxel_centers = wp.from_torch(voxel_centers, dtype=wp.vec3f)
+        n_voxels = self.grid.total_voxels
+        print(n_voxels)
+
+        visibilities = wp.zeros(shape=(n_voxels,), dtype=wp.int32, device=cameras.device)
+        wp.launch(
+            kernel=increment_point_visibility_kernel,
+            dim=n_voxels,
+            inputs=[cameras, voxel_centers],
+            outputs=[visibilities],
+        )
+        wp.synchronize()
+
+        visibilities = wp.to_torch(visibilities)
+        self.nonvisible_voxel_mask = visibilities == 0
+
+        self.grid.disable_ijk(vox_ijk[self.nonvisible_voxel_mask])

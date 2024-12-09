@@ -63,7 +63,7 @@ def query_samples(model: WarpNeRFModel, samples: SampleBatch) -> SampleBatch:
     samples.rgb = model.query_rgb(samples.dir, geo_feat)
 
     # scale dt
-    samples.dt = samples.dt / model.aabb_scale
+    # samples.dt = samples.dt / model.aabb_scale
 
     return samples
 
