@@ -142,17 +142,24 @@ class Dataset:
                 self.training_cameras.append(training_camera)
 
         if self.type == DatasetType.TRANSFORMS_JSON:
-            json_data = None
+            json_data: json = None
             with open(self.path, "r") as f:
                 json_data = json.load(f)
             
             frames = json_data["frames"]
             self.image_paths = [self.path.parent / f["file_path"] for f in frames]
+            self.image_paths = [p.parent.parent / "images_2" / p.name for p in self.image_paths]
+
             img_w, img_h = get_image_dims(self.image_paths[0])
-            camera_angle_x = json_data["camera_angle_x"] if "camera_angle_x" in json_data else 0.0
-            camera_fx = 0.5 * img_w / math.tan(0.5 * camera_angle_x)
-            camera_k1 = 0.0
-            camera_k2 = 0.0
+            if "camera_angle_x" in json_data:
+                camera_angle_x = json_data["camera_angle_x"]
+                camera_fx = 0.5 * img_w / math.tan(0.5 * camera_angle_x)
+            if "fl_x" in json_data:
+                camera_fx = json_data["fl_x"]
+            camera_k1 = json_data["k1"] if "k1" in json_data else 0.0
+            camera_k2 = json_data["k2"] if "k2" in json_data else 0.0
+            camera_p1 = json_data["p1"] if "p1" in json_data else 0.0
+            camera_p2 = json_data["p2"] if "p2" in json_data else 0.0
 
             self.training_cameras = []
             for i, frame in enumerate(frames):
@@ -164,6 +171,8 @@ class Dataset:
                 cam_data.sy = img_h
                 cam_data.k1 = camera_k1
                 cam_data.k2 = camera_k2
+                cam_data.p1 = camera_p1
+                cam_data.p2 = camera_p2
                 
                 R = wp.mat33f(M[:3, :3])
                 FLIP_MAT = wp.mat33f(
@@ -202,7 +211,7 @@ class Dataset:
         batch = create_ray_batch(n_rays, device=device)
         rgba = wp.empty(shape=(4, n_rays), dtype=wp.uint8, device=device)
 
-        pixel_indices = wp.array(np.random.choice(self.num_pixels_total, n_rays), dtype=wp.int32, device=device)
+        pixel_indices = wp.array(np.random.choice(self.num_pixels_total, n_rays), dtype=wp.uint64, device=device)
         random_xy_noise = wp.array(np.random.ranf((n_rays, 2)), dtype=wp.float32, device=device)
 
         wp.launch(

@@ -8,16 +8,20 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
+        'lightglue @ git+https://github.com/cvg/LightGlue.git#egg=lightglue',
+        'msgpack',
+        'pycolmap',
+        'tinycudann @ git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch',
         'torch',
         'torchvision',
         'torchaudio',
         'tyro',
         'viser',
         'warp-lang',
+        'websockets',
     ],
     dependency_links=[
         'https://download.pytorch.org/whl/cu124',
-        'git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch',
     ],
     entry_points='''
         [console_scripts]

@@ -23,8 +23,9 @@ def generate_samples(
         ray_directions=ray_dir,
         t_min=t_min,
         t_max=t_max,
-        step_size=model.step_size
-    )        
+        step_size=model.step_size,
+        cone_angle=1.0/256.0,
+    )
     
     ray_idx = ray_intervals.jidx.int() #ray_idx.jdata
 

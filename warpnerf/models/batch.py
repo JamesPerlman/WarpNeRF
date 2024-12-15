@@ -16,6 +16,7 @@ class RayBatch:
     # radius: wp.array1d(dtype=wp.float32)
     alive: wp.array1d(dtype=wp.bool)
     t: wp.array1d(dtype=wp.float32)
+    cam_idx: wp.array1d(dtype=wp.int32)
 
 def create_ray_batch(count: int, device: str = "cuda") -> RayBatch:
     batch = RayBatch()
@@ -27,6 +28,7 @@ def create_ray_batch(count: int, device: str = "cuda") -> RayBatch:
     # batch.radius = wp.empty(shape=(count), dtype=wp.float32, device=device)
     # batch.alive = wp.zeros(shape=(count), dtype=wp.bool, device=device)
     batch.t = wp.zeros(shape=(count), dtype=wp.float32, device=device)
+    batch.cam_idx = wp.empty(shape=(count), dtype=wp.int32, device=device)
 
     return batch
 
@@ -45,3 +47,4 @@ class SampleBatch:
     sigma: Tensor
     geo_feat: Tensor
     ray_idx: Tensor
+    cam_idx: Tensor

@@ -27,6 +27,9 @@ def get_global_ray_at_pixel_xy(
     ray = Ray()
     ray.dir = wp.normalize(wp.mul(camera.R, v))
     ray.ori = camera.t + (wp.mul(near * v_len, ray.dir))
+
+    return ray
+
     # ray.cos = v_norm.z
 
     # # radius is half way between the apothem and circumradius of the pixel
@@ -36,7 +39,6 @@ def get_global_ray_at_pixel_xy(
     # pixel_avg_apothem = (pixel_w + pixel_h) / 4.0
     # ray.radius = 0.5 * (pixel_avg_apothem + pixel_circumradius)
 
-    return ray
 
 @wp.kernel
 def get_rays_for_camera_kernel(
@@ -54,6 +56,7 @@ def get_rays_for_camera_kernel(
 
     rays_out.ori[idx] = ray.ori
     rays_out.dir[idx] = ray.dir
+    rays_out.cam_idx[idx] = 0
     # rays_out.cos[idx] = ray.cos
     # rays_out.radius[idx] = ray.radius
 

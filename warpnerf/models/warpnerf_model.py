@@ -23,7 +23,8 @@ class WarpNeRFModel(torch.nn.Module):
 
     def __init__(
         self,
-        aabb_scale: float = 1.0,
+        aabb_scale: float,
+        n_appearance_embeddings: int
     ) -> None:
         super().__init__()
 
@@ -37,6 +38,8 @@ class WarpNeRFModel(torch.nn.Module):
         self.dir_enc = SHDeg4Encoding()
 
         self.density_activation = TruncExp.apply
+
+        self.percent_occupied = 0.0
 
         # initialize grid
         # grid_res = 128
@@ -57,6 +60,13 @@ class WarpNeRFModel(torch.nn.Module):
             origins=[0.5 * self.aabb_scale * (1.0 / self.grid_res - 1.0)] * 3
         )
         self.grid_sigma = None
+
+        # init appearance embedding
+        self.appearance_embedding = torch.nn.Embedding(
+            num_embeddings=n_appearance_embeddings,
+            embedding_dim=16,
+            device=device
+        )
 
         # density network with hash encoding
         num_levels = 16
@@ -99,7 +109,7 @@ class WarpNeRFModel(torch.nn.Module):
             }
         )
 
-        color_net_input_dims = n_density_features + self.dir_enc.n_output_dims
+        color_net_input_dims = n_density_features + self.dir_enc.n_output_dims + self.appearance_embedding.embedding_dim
 
         self.mlp_head = tcnn.Network(
             n_input_dims=color_net_input_dims,
@@ -147,63 +157,65 @@ class WarpNeRFModel(torch.nn.Module):
     def query_rgb(
         self,
         dir: Tensor,
-        density_feat: Tensor
+        density_feat: Tensor,
+        embedding_idx: Tensor,
     ) -> Tensor:
         dir_norm = (dir + 1.0) / 2.0
         dir_encoded = self.dir_enc(dir_norm)
-        color_in = torch.cat([density_feat, dir_encoded], dim=-1)
-
+        embedded_appearance = self.appearance_embedding(embedding_idx)
+        color_in = torch.cat([density_feat, dir_encoded, embedded_appearance], dim=-1)
         color_out = self.mlp_head(color_in).float()
-
         return color_out
     
     def update_grid_occupancy(self, threshold: float = 0.01, decay_rate: float = 0.95):
-        vox_ijk = self.grid.ijk.jdata
-        voxel_centers = self.grid.grid_to_world(vox_ijk.to(torch.float32)).jdata
-        random_offsets = torch.rand_like(voxel_centers) - 0.5
-        xyz = voxel_centers + random_offsets * self.voxel_size
-        sigma = self.query_sigma(xyz, return_feat=False)
-        
-        if self.grid_sigma is None:
-            self.grid_sigma = sigma.detach()
-        else:
-            self.grid_sigma = torch.max(decay_rate * self.grid_sigma, sigma.detach())
+        with torch.no_grad():
+            vox_ijk = self.grid.ijk.jdata
+            voxel_centers = self.grid.grid_to_world(vox_ijk.to(torch.float32)).jdata
+            random_offsets = torch.rand_like(voxel_centers) - 0.5
+            xyz = voxel_centers + random_offsets * self.voxel_size
+            sigma = self.query_sigma(xyz, return_feat=False)
+            
+            if self.grid_sigma is None:
+                self.grid_sigma = sigma.detach()
+            else:
+                self.grid_sigma = torch.max(decay_rate * self.grid_sigma, sigma.detach())
 
-        enable_mask = self.grid_sigma >= threshold
-        if self.nonvisible_voxel_mask is not None:
-            enable_mask = enable_mask & ~self.nonvisible_voxel_mask
+            enable_mask = self.grid_sigma >= threshold
+            if self.nonvisible_voxel_mask is not None:
+                enable_mask = enable_mask & ~self.nonvisible_voxel_mask
 
-        disable_mask = ~enable_mask
-        self.occupancy_mask = enable_mask
+            disable_mask = ~enable_mask
+            self.occupancy_mask = enable_mask
 
-        # self.grid.enable_ijk(vox_ijk[enable_mask])
-        self.grid.disable_ijk(vox_ijk[disable_mask])
-        
-        print(f"the grid is {100 * (self.grid.total_enabled_voxels / self.grid.total_voxels)}% occupied")
+            # self.grid.enable_ijk(vox_ijk[enable_mask])
+            self.grid.disable_ijk(vox_ijk[disable_mask])
+            
+            self.percent_occupied = 100 * (self.grid.total_enabled_voxels / self.grid.total_voxels)
 
     def subdivide_grid(self):
-        new_grid_sigma, new_grid = self.grid.subdivide(2, self.grid_sigma.unsqueeze(-1), mask=self.occupancy_mask)
-        self.grid_sigma = new_grid_sigma.jdata.squeeze(-1)
-        self.grid = new_grid
-        self.n_subdivisions += 1
+        with torch.no_grad():
+            new_grid_sigma, new_grid = self.grid.subdivide(2, self.grid_sigma.unsqueeze(-1), mask=self.occupancy_mask)
+            self.grid_sigma = new_grid_sigma.jdata.squeeze(-1)
+            self.grid = new_grid
+            self.n_subdivisions += 1
 
     def update_nonvisible_voxel_mask(self, cameras: wp.array1d(dtype=CameraData)):
-        vox_ijk = self.grid.ijk.jdata
-        voxel_centers = self.grid.grid_to_world(vox_ijk.to(torch.float32)).jdata
-        voxel_centers = wp.from_torch(voxel_centers, dtype=wp.vec3f)
-        n_voxels = self.grid.total_voxels
-        print(n_voxels)
+        with torch.no_grad():
+            vox_ijk = self.grid.ijk.jdata
+            voxel_centers = self.grid.grid_to_world(vox_ijk.to(torch.float32)).jdata
+            voxel_centers = wp.from_torch(voxel_centers, dtype=wp.vec3f)
+            n_voxels = self.grid.total_voxels
 
-        visibilities = wp.zeros(shape=(n_voxels,), dtype=wp.int32, device=cameras.device)
-        wp.launch(
-            kernel=increment_point_visibility_kernel,
-            dim=n_voxels,
-            inputs=[cameras, voxel_centers],
-            outputs=[visibilities],
-        )
-        wp.synchronize()
+            visibilities = wp.zeros(shape=(n_voxels,), dtype=wp.int32, device=cameras.device)
+            wp.launch(
+                kernel=increment_point_visibility_kernel,
+                dim=n_voxels,
+                inputs=[cameras, voxel_centers],
+                outputs=[visibilities],
+            )
+            wp.synchronize()
 
-        visibilities = wp.to_torch(visibilities)
-        self.nonvisible_voxel_mask = visibilities == 0
+            visibilities = wp.to_torch(visibilities)
+            self.nonvisible_voxel_mask = visibilities == 0
 
-        self.grid.disable_ijk(vox_ijk[self.nonvisible_voxel_mask])
+            self.grid.disable_ijk(vox_ijk[self.nonvisible_voxel_mask])

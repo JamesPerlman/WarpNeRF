@@ -200,9 +200,9 @@ class MipNeRF360DistortionLoss(torch.autograd.Function):
         ctx.distortion_loss_lambda = distortion_loss_lambda
         ctx.ray_n_samples = wp.from_torch(ray_n_samples)
         ctx.ray_sample_offset = wp.from_torch(ray_sample_offset)
-        ctx.sample_sigma = wp.from_torch(sample_sigma)
         ctx.sample_m_norm = wp.from_torch(sample_m_norm)
         ctx.sample_dt_norm = wp.from_torch(sample_dt_norm)
+        ctx.sample_sigma = wp.from_torch(sample_sigma)
         ctx.save_for_backward(sample_sigma)
 
         device = ctx.ray_n_samples.device
@@ -273,7 +273,6 @@ class MipNeRF360DistortionLoss(torch.autograd.Function):
             ]
         )
 
-        torch_sample_sigma, = ctx.saved_tensors
-        sample_sigma_grad = grad_output * wp.to_torch(sigma_grad) * torch_sample_sigma.grad
+        sample_sigma_grad = grad_output * wp.to_torch(sigma_grad)
         return None, None, None, None, None, sample_sigma_grad
 

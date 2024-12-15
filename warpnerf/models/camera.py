@@ -14,6 +14,8 @@ class CameraData:
     sy: wp.float32  # sensor height in pixels
     k1: wp.float32  # radial distortion coefficient
     k2: wp.float32  # radial distortion coefficient
+    p1: wp.float32  # tangential distortion coefficient
+    p2: wp.float32  # tangential distortion coefficient
     R: wp.mat33f    # rotation matrix
     t: wp.vec3f     # translation vector
 

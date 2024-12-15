@@ -14,6 +14,7 @@ def generate_samples(
     ray_dir = wp.to_torch(rays.dir, requires_grad=False)
     t_min = torch.zeros(ray_ori.shape[0]).to(ray_ori)
     t_max = torch.full_like(t_min, fill_value=1e9)
+    cam_idx = wp.to_torch(rays.cam_idx, requires_grad=False)
 
     # pack_info, ray_idx, ray_intervals = model.grid.uniform_ray_samples(ray_ori, ray_dir, t_min, t_max, step_size)
     ray_intervals = model.grid.uniform_ray_samples(
@@ -51,6 +52,7 @@ def generate_samples(
     samples.xyz = ray_ori[ray_idx] + ray_dir[ray_idx] * samples.t[:, None]
     samples.dir = ray_dir[ray_idx]
     samples.ray_idx = ray_idx
+    samples.cam_idx = cam_idx[ray_idx]
 
     return samples
 
@@ -58,9 +60,9 @@ def query_samples(model: WarpNeRFModel, samples: SampleBatch) -> SampleBatch:
 
     # query density
     samples.sigma, geo_feat = model.query_sigma(samples.xyz, return_feat=True)
-
+    
     # query color
-    samples.rgb = model.query_rgb(samples.dir, geo_feat)
+    samples.rgb = model.query_rgb(samples.dir, geo_feat, samples.cam_idx)
 
     # scale dt
     # samples.dt = samples.dt / model.aabb_scale
