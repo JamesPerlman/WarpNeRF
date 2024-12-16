@@ -12,6 +12,8 @@ class CameraData:
     f: wp.float32   # focal length in pixels
     sx: wp.float32  # sensor width in pixels
     sy: wp.float32  # sensor height in pixels
+    cx: wp.float32  # principal point x in pixels
+    cy: wp.float32  # principal point y in pixels
     k1: wp.float32  # radial distortion coefficient
     k2: wp.float32  # radial distortion coefficient
     p1: wp.float32  # tangential distortion coefficient

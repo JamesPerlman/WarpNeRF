@@ -54,6 +54,8 @@ class VisualizationServer:
         cam_data.f = focal_len
         cam_data.sx = viser_cam.aspect
         cam_data.sy = 1.0
+        cam_data.cx = 0.5 * cam_data.sx
+        cam_data.cy = 0.5 * cam_data.sy
         cam_data.t = T
         cam_data.R = R
 

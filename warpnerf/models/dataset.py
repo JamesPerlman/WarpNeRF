@@ -148,7 +148,7 @@ class Dataset:
             
             frames = json_data["frames"]
             self.image_paths = [self.path.parent / f["file_path"] for f in frames]
-            # self.image_paths = [p.parent.parent / "images_2" / p.name for p in self.image_paths]
+            self.image_paths = [p.parent.parent / "images_2" / p.name for p in self.image_paths]
 
             img_w, img_h = get_image_dims(self.image_paths[0])
             cam_w = json_data.get("w", img_w)

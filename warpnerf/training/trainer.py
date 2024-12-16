@@ -78,7 +78,7 @@ class Trainer:
         target_alpha = target_alpha.unsqueeze(-1)
         target_rgb = target_rgb * target_alpha + random_rgb * (1 - target_alpha)
 
-        loss = torch.nn.functional.smooth_l1_loss(pred_rgb, target_rgb)
+        loss = torch.nn.functional.mse_loss(pred_rgb, target_rgb)
 
         # if self.model.n_subdivisions < 0:
         #     all_ijk = self.model.grid.ijk.jdata
@@ -118,10 +118,10 @@ class Trainer:
         self.n_steps += 1
 
         if self.n_steps % 16 == 0 and self.n_steps > 1024:
-            self.model.update_grid_occupancy(threshold=0.01 * self.model.grid_res / math.sqrt(3))
+            self.model.update_grid_occupancy(threshold=0.001 * self.model.grid_res / math.sqrt(3))
 
-        if self.n_steps % self.n_steps_to_subdivide == 0 and self.n_steps > 0 and self.model.n_subdivisions < 5:
-            self.model.subdivide_grid()
-            self.model.update_nonvisible_voxel_mask(self.dataset.camera_data)
+        # if self.n_steps % self.n_steps_to_subdivide == 0 and self.n_steps > 0 and self.model.n_subdivisions < 5:
+        #     self.model.subdivide_grid()
+        #     self.model.update_nonvisible_voxel_mask(self.dataset.camera_data)
 
-        print(f"the loss is {loss}, the step is {self.n_steps}")
+        print(f"the loss is {loss}, the step is {self.n_steps}, the grid is {self.model.percent_occupied}% occupied")
