@@ -148,14 +148,21 @@ class Dataset:
             
             frames = json_data["frames"]
             self.image_paths = [self.path.parent / f["file_path"] for f in frames]
-            self.image_paths = [p.parent.parent / "images_2" / p.name for p in self.image_paths]
+            # self.image_paths = [p.parent.parent / "images_2" / p.name for p in self.image_paths]
 
             img_w, img_h = get_image_dims(self.image_paths[0])
+            cam_w = json_data.get("w", img_w)
+            cam_h = json_data.get("h", img_h)
             if "camera_angle_x" in json_data:
                 camera_angle_x = json_data["camera_angle_x"]
-                camera_fx = 0.5 * img_w / math.tan(0.5 * camera_angle_x)
+                camera_fx = 0.5 * cam_w / math.tan(0.5 * camera_angle_x)
             if "fl_x" in json_data:
                 camera_fx = json_data["fl_x"]
+            
+            camera_fy = json_data.get("fl_y", camera_fx)
+            camera_cx = json_data.get("cx", img_w / 2)
+            camera_cy = json_data.get("cy", img_h / 2)
+            
             camera_k1 = json_data["k1"] if "k1" in json_data else 0.0
             camera_k2 = json_data["k2"] if "k2" in json_data else 0.0
             camera_p1 = json_data["p1"] if "p1" in json_data else 0.0
@@ -167,8 +174,8 @@ class Dataset:
                 
                 cam_data = CameraData()
                 cam_data.f = camera_fx
-                cam_data.sx = img_w
-                cam_data.sy = img_h
+                cam_data.sx = cam_w
+                cam_data.sy = cam_h
                 cam_data.k1 = camera_k1
                 cam_data.k2 = camera_k2
                 cam_data.p1 = camera_p1

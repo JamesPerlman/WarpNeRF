@@ -22,8 +22,9 @@ class Trainer:
     n_steps: int = 0
     n_steps_to_subdivide: int = 2048
     max_subdivisions: int = 30
-
+    target_samples_per_batch: int = 131072
     n_rays_per_batch: int = 8192
+    n_samples_per_batch: int = None
 
     def __init__(
         self,
@@ -51,6 +52,12 @@ class Trainer:
         target_alpha = target_rgba[3, :].to(dtype=torch.float32) / 255.0
 
         samples = generate_samples(self.model, rays, stratify=True)
+        self.n_samples_per_ray_avg = samples.count / rays.count
+        self.n_rays_per_batch = int(self.target_samples_per_batch // self.n_samples_per_ray_avg)
+
+        # print(f"n_rays in this batch: {rays.count}, n_samples in this batch: {samples.count}")
+        # print(f"n_samples per ray avg: {self.n_samples_per_ray_avg}, n_rays per batch: {self.n_rays_per_batch}")
+
 
         if samples.count == 0:
             print("No samples in batch!")

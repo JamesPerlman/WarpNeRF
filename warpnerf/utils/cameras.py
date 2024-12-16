@@ -92,4 +92,3 @@ def increment_point_visibility_kernel(
             continue
         
         visibilities[idx] += 1
-
