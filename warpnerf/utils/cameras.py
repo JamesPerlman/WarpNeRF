@@ -163,8 +163,7 @@ def increment_point_visibility_kernel(
 ):
     idx = wp.tid()
     point = points[idx]
-    visibilities[idx] = 1
-    return
+
     for i in range(cameras.shape[0]):
         
         camera = cameras[i]
@@ -172,7 +171,7 @@ def increment_point_visibility_kernel(
         # transform point to camera space
         point_cam = wp.mul(camera.R, point - camera.t)
 
-        if point_cam.z <= 0.0:
+        if point_cam.z > 0.0:
             continue
         
         # project point to 2D

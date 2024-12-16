@@ -20,7 +20,7 @@ class Trainer:
     dataset: Dataset
 
     n_steps: int = 0
-    n_steps_to_subdivide: int = 2048
+    n_steps_to_subdivide: int = 1024
     max_subdivisions: int = 30
     target_samples_per_batch: int = 131072
     n_rays_per_batch: int = 8192
@@ -117,11 +117,11 @@ class Trainer:
         self.opt.step()
         self.n_steps += 1
 
-        if self.n_steps % 16 == 0 and self.n_steps > 1024:
-            self.model.update_grid_occupancy(threshold=0.001 * self.model.grid_res / math.sqrt(3))
+        if self.n_steps % 16 == 0 and self.n_steps > 512:
+            self.model.update_grid_occupancy(threshold=0.01 * self.model.grid_res / math.sqrt(3))
 
-        # if self.n_steps % self.n_steps_to_subdivide == 0 and self.n_steps > 0 and self.model.n_subdivisions < 5:
-        #     self.model.subdivide_grid()
-        #     self.model.update_nonvisible_voxel_mask(self.dataset.camera_data)
+        if self.n_steps % self.n_steps_to_subdivide == 0 and self.n_steps > 0 and self.model.n_subdivisions < 1:
+            self.model.subdivide_grid()
+            self.model.update_nonvisible_voxel_mask(self.dataset.camera_data)
 
         print(f"the loss is {loss}, the step is {self.n_steps}, the grid is {self.model.percent_occupied}% occupied")

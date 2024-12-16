@@ -12,10 +12,11 @@ def get_image_dims(path: Path) -> tuple[int, int]:
     img = Image.open(path)
     return img.size
 
-# loads an image to the GPU
+# loads an image to the CPU
 def load_image(path: Path) -> np.ndarray:
     assert is_image(path), f"{path} is not an image file"
     img = Image.open(path)
+    img = img.convert("RGBA")
     return np.array(img)
 
 # save image from planar format (rrr, ggg, bbb, aaa)

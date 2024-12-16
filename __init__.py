@@ -144,11 +144,11 @@ for i in range(10000):
     trainer.step()
     scheduler.step()
 
-    if i % 25 == 0:
+    if i % 1000 == 0:
         server_render()
 
-    if i % 100 == 0:
-        save_img(model, dataset.training_cameras[0], i)
+    # if i % 100 == 0:
+    #     save_img(model, dataset.training_cameras[0], i)
 
 wp.synchronize()
 
