@@ -22,7 +22,7 @@ class Trainer:
     n_steps: int = 0
     n_steps_to_subdivide: int = 1024
     max_subdivisions: int = 30
-    target_samples_per_batch: int = 131072
+    target_samples_per_batch: int = None
     n_rays_per_batch: int = 8192
     n_samples_per_batch: int = None
 
@@ -52,6 +52,9 @@ class Trainer:
         target_alpha = target_rgba[3, :].to(dtype=torch.float32) / 255.0
 
         samples = generate_samples(self.model, rays, stratify=True)
+        if self.target_samples_per_batch is None:
+            self.target_samples_per_batch = samples.count
+
         self.n_samples_per_ray_avg = samples.count / rays.count
         self.n_rays_per_batch = int(self.target_samples_per_batch // self.n_samples_per_ray_avg)
 
@@ -95,15 +98,15 @@ class Trainer:
         #     loss += tv_reg
         
         # distortion loss
-        # distortion_loss_lambda = 1e-5
-        # loss += MipNeRF360DistortionLoss.apply(
-        #     distortion_loss_lambda,
-        #     samples.n_samples,
-        #     samples.offsets,
-        #     samples.t,
-        #     samples.dt,
-        #     samples.sigma,
-        # )
+        distortion_loss_lambda = 1e-5
+        loss += MipNeRF360DistortionLoss.apply(
+            distortion_loss_lambda,
+            samples.n_samples,
+            samples.offsets,
+            samples.t,
+            samples.dt,
+            samples.sigma,
+        )
 
         # maybe return sigma from distortion loss?
         
@@ -120,8 +123,8 @@ class Trainer:
         if self.n_steps % 16 == 0 and self.n_steps > 512:
             self.model.update_grid_occupancy(threshold=0.01 * self.model.grid_res / math.sqrt(3))
 
-        if self.n_steps % self.n_steps_to_subdivide == 0 and self.n_steps > 0 and self.model.n_subdivisions < 1:
+        if self.n_steps % self.n_steps_to_subdivide == 0 and self.n_steps > 0 and self.model.n_subdivisions < 3:
             self.model.subdivide_grid()
             self.model.update_nonvisible_voxel_mask(self.dataset.camera_data)
 
-        print(f"the loss is {loss}, the step is {self.n_steps}, the grid is {self.model.percent_occupied}% occupied")
+        print(f"the loss is {loss:.3f}, the step is {self.n_steps}, the grid is {self.model.percent_occupied:.0f}% occupied, there are {self.n_rays_per_batch} rays in this batch")

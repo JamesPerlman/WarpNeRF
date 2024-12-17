@@ -40,14 +40,14 @@ dataset = Dataset(path=Path("/home/luks/james/nerfs/turb-small"), type=DatasetTy
 #     path=Path("/home/luks/james/nerfs/nerf_synthetic/lego/transforms_train.json"),
 #     type=DatasetType.TRANSFORMS_JSON,
 # )
-# dataset = Dataset(
-#     path=Path("/home/luks/james/nerfs/prius-iheartnerfs-simple/7432-data/transforms.json"),
-#     type=DatasetType.TRANSFORMS_JSON,
-# )
 dataset = Dataset(
-    path=Path("/home/luks/james/nerfs/pipe-thingy-makawao/transforms.json"),
+    path=Path("/home/luks/james/nerfs/prius-iheartnerfs-simple/7432-data/transforms.json"),
     type=DatasetType.TRANSFORMS_JSON,
 )
+# dataset = Dataset(
+#     path=Path("/home/luks/james/nerfs/pipe-thingy-makawao/transforms.json"),
+#     type=DatasetType.TRANSFORMS_JSON,
+# )
 dataset.load()
 scene_extent = dataset.scene_bounding_box.max - dataset.scene_bounding_box.min
 aabb_scale = max(scene_extent.x, scene_extent.y, scene_extent.z)
@@ -144,7 +144,7 @@ for i in range(10000):
     trainer.step()
     scheduler.step()
 
-    if i % 1000 == 0:
+    if i % 100 == 0:
         server_render()
 
     # if i % 100 == 0:

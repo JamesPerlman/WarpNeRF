@@ -60,6 +60,7 @@ class WarpNeRFModel(torch.nn.Module):
             origins=[0.5 * self.aabb_scale * (1.0 / self.grid_res - 1.0)] * 3
         )
         self.grid_sigma = None
+        self.occupancy_mask = None
 
         # init appearance embedding
         self.appearance_embedding = torch.nn.Embedding(
@@ -169,26 +170,35 @@ class WarpNeRFModel(torch.nn.Module):
     
     def update_grid_occupancy(self, threshold: float = 0.01, decay_rate: float = 0.95):
         with torch.no_grad():
+            batch_size = 128 ** 3
             vox_ijk = self.grid.ijk.jdata
-            voxel_centers = self.grid.grid_to_world(vox_ijk.to(torch.float32)).jdata
-            random_offsets = torch.rand_like(voxel_centers) - 0.5
-            xyz = voxel_centers + random_offsets * self.voxel_size
-            sigma = self.query_sigma(xyz, return_feat=False)
-            
-            if self.grid_sigma is None:
-                self.grid_sigma = sigma.detach()
-            else:
-                self.grid_sigma = torch.max(decay_rate * self.grid_sigma, sigma.detach())
+            n_batches = (self.grid.total_voxels + batch_size - 1) // batch_size
+            for i in range(n_batches):
+                start = i * batch_size
+                end = min((i + 1) * batch_size, self.grid.total_voxels)
+                vox_batch = vox_ijk[start:end]
+                voxel_centers = self.grid.grid_to_world(vox_batch.to(torch.float32)).jdata
+                random_offsets = torch.rand_like(voxel_centers) - 0.5
+                xyz = voxel_centers + random_offsets * self.voxel_size
+                sigma = self.query_sigma(xyz, return_feat=False)
+                
+                if self.grid_sigma is None:
+                    self.grid_sigma = torch.empty((self.grid.total_voxels,), dtype=torch.float32, device=vox_ijk.device)
+                    self.grid_sigma[start:end] = sigma
+                else:
+                    self.grid_sigma[start:end] = torch.max(decay_rate * self.grid_sigma[start:end], sigma)
 
-            enable_mask = self.grid_sigma >= threshold
-            if self.nonvisible_voxel_mask is not None:
-                enable_mask = enable_mask & ~self.nonvisible_voxel_mask
+                enable_mask = self.grid_sigma[start:end] >= threshold
+                # if self.nonvisible_voxel_mask is not None:
+                #     enable_mask = enable_mask & ~self.nonvisible_voxel_mask
 
-            disable_mask = ~enable_mask
-            self.occupancy_mask = enable_mask
+                disable_mask = ~enable_mask
+                if self.occupancy_mask is None or self.occupancy_mask.shape[0] != self.grid.total_voxels:
+                    self.occupancy_mask = torch.zeros((self.grid.total_voxels,), dtype=torch.bool, device=vox_ijk.device)
+                self.occupancy_mask[start:end] = enable_mask
 
-            # self.grid.enable_ijk(vox_ijk[enable_mask])
-            self.grid.disable_ijk(vox_ijk[disable_mask])
+                # self.grid.enable_ijk(vox_ijk[enable_mask])
+                self.grid.disable_ijk(vox_batch[disable_mask])
             
             self.percent_occupied = 100 * (self.grid.total_enabled_voxels / self.grid.total_voxels)
 
@@ -200,6 +210,7 @@ class WarpNeRFModel(torch.nn.Module):
             self.n_subdivisions += 1
 
     def update_nonvisible_voxel_mask(self, cameras: wp.array1d(dtype=CameraData)):
+        return
         with torch.no_grad():
             vox_ijk = self.grid.ijk.jdata
             voxel_centers = self.grid.grid_to_world(vox_ijk.to(torch.float32)).jdata
