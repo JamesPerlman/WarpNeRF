@@ -35,13 +35,19 @@ wp.init()
 # print(random_vec3s)
 # print(contracted_vec3s)
 # exit()
-dataset = Dataset(path=Path("/home/luks/james/nerfs/turb-small"), type=DatasetType.BUNDLER)
+# dataset = Dataset(path=Path("/home/luks/james/nerfs/turb-small"), type=DatasetType.BUNDLER)
 # dataset = Dataset(
 #     path=Path("/home/luks/james/nerfs/nerf_synthetic/lego/transforms_train.json"),
 #     type=DatasetType.TRANSFORMS_JSON,
 # )
+# proj_path = Path("/home/luks/james/nerfs/balloondog/")
+proj_path = Path("/home/luks/james/nerfs/sum+viv/")
+# proj_path = Path("/home/luks/james/nerfs/pipe-thingy-makawao/")
+test_render_frames_path = proj_path / "test_render_frames"
+test_render_frames_path.mkdir(exist_ok=True)
+target_cam_idx = 0
 dataset = Dataset(
-    path=Path("/home/luks/james/nerfs/prius-iheartnerfs-simple/7432-data/transforms.json"),
+    path=proj_path / "transforms.json",
     type=DatasetType.TRANSFORMS_JSON,
 )
 # dataset = Dataset(
@@ -49,8 +55,9 @@ dataset = Dataset(
 #     type=DatasetType.TRANSFORMS_JSON,
 # )
 dataset.load()
-scene_extent = dataset.scene_bounding_box.max - dataset.scene_bounding_box.min
-aabb_scale = max(scene_extent.x, scene_extent.y, scene_extent.z)
+aabb_size = dataset.scene_bounding_box.max - dataset.scene_bounding_box.min
+aabb_scale = max(aabb_size.x, aabb_size.y, aabb_size.z)
+aabb_scale = 8.0
 dataset.resize_and_center(aabb_scale=aabb_scale)
 
 model = WarpNeRFModel(aabb_scale=aabb_scale, n_appearance_embeddings=dataset.num_images)
@@ -118,8 +125,6 @@ def render_camera(model, camera: TrainingCamera, img_w=None, img_h=None):
 def save_img(model, camera: TrainingCamera, idx: int):
     with torch.no_grad():
         img_w, img_h = camera.image_dims
-        img_w = img_w // 4
-        img_h = img_h // 4
 
         rgb, alpha = render_camera(model, camera, img_w, img_h)
         a = (alpha * 255).to(dtype=torch.uint8)
@@ -128,7 +133,7 @@ def save_img(model, camera: TrainingCamera, idx: int):
         rgba = torch.cat([rgb, a.unsqueeze(-1)], dim=1).reshape(img_w, img_h, 4)
         rgba = rgba.permute(2, 0, 1)
         rgba = wp.from_torch(rgba)
-        save_image(rgba, f"/home/luks/james/nerfs/test_images/01-turb-small-{idx:05d}.png")
+        save_image(rgba, test_render_frames_path / f"step-{idx:05d}.png")
 
 
 def server_render():
@@ -140,15 +145,27 @@ def server_render():
     rgb = np.array(rgb.reshape(w, h, 3).permute(1,0,2).detach().cpu().numpy(), dtype=np.float32)
     server.set_background_image(rgb)
 
-for i in range(10000):
+max_step = 10000
+n_frames = 900
+exp_frames = []
+for j in range(0, n_frames, 2):
+    # exponential from 0 to 10,000
+    val = ((max_step + 1) ** (j / (n_frames - 1))) - 1
+    i_val = int(round(val))
+    exp_frames.append(i_val)
+
+exp_frames_set = set(exp_frames)
+frame_num = 0
+for i in range(max_step + 1):
     trainer.step()
     scheduler.step()
 
-    if i % 100 == 0:
+    if i % 100 == 0 and i > 0:
         server_render()
 
-    # if i % 100 == 0:
-    #     save_img(model, dataset.training_cameras[0], i)
+    if i in exp_frames_set:
+        save_img(model, dataset.training_cameras[target_cam_idx], frame_num)
+        frame_num += 1
 
 wp.synchronize()
 
