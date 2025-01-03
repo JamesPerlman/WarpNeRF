@@ -17,7 +17,7 @@ setup(
         'torchaudio',
         'tyro',
         'viser',
-        'warp-lang',
+        'warp-lang==1.5.0',
         'websockets',
     ],
     dependency_links=[
