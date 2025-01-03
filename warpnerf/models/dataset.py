@@ -148,7 +148,7 @@ class Dataset:
             
             frames = json_data["frames"]
             self.image_paths = [self.path.parent / f["file_path"] for f in frames]
-            self.image_paths = [p.parent.parent / "images_2" / p.name for p in self.image_paths]
+            self.image_paths = [p.parent.parent / "images" / p.name for p in self.image_paths]
 
             img_w, img_h = get_image_dims(self.image_paths[0])
             cam_w = json_data.get("w", img_w)
@@ -160,8 +160,8 @@ class Dataset:
                 camera_fx = json_data["fl_x"]
             
             camera_fy = json_data.get("fl_y", camera_fx)
-            camera_cx = json_data.get("cx", img_w / 2)
-            camera_cy = json_data.get("cy", img_h / 2)
+            camera_cx = json_data.get("cx", cam_w / 2)
+            camera_cy = json_data.get("cy", cam_h / 2)
             
             camera_k1 = json_data["k1"] if "k1" in json_data else 0.0
             camera_k2 = json_data["k2"] if "k2" in json_data else 0.0
@@ -180,6 +180,8 @@ class Dataset:
                 cam_data.k2 = camera_k2
                 cam_data.p1 = camera_p1
                 cam_data.p2 = camera_p2
+                cam_data.cx = camera_cx
+                cam_data.cy = camera_cy
                 
                 R = wp.mat33f(M[:3, :3])
                 FLIP_MAT = wp.mat33f(
@@ -202,14 +204,15 @@ class Dataset:
         scene_center = 0.5 * (scene_bbox.min + scene_bbox.max)
         scene_extent = scene_bbox.max - scene_bbox.min
         scene_max_extent = max(scene_extent.x, scene_extent.y, scene_extent.z)
-        aabb_extent = aabb_scale / 2.0
-        scale = 1.0 / scene_max_extent * aabb_extent
+        scale = 1.0 / scene_max_extent * aabb_scale
 
         for camera in self.training_cameras:
             camera.camera_data.t = scale * (camera.camera_data.t - scene_center)
             camera.camera_data.f *= scale
             camera.camera_data.sx *= scale
             camera.camera_data.sy *= scale
+            camera.camera_data.cx *= scale
+            camera.camera_data.cy *= scale
 
 
     def get_batch(self, n_rays: int, random_seed: wp.int32, device: str = "cuda") -> tuple[RayBatch, wp.array(dtype=wp.vec4f)]:
