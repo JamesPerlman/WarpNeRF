@@ -23,7 +23,7 @@ class Trainer:
     n_steps_to_subdivide: int = 1024
     max_subdivisions: int = 2
     target_samples_per_batch: int = None
-    n_rays_per_batch: int = 16384
+    n_rays_per_batch: int = 4096
     n_samples_per_batch: int = None
 
     def __init__(
