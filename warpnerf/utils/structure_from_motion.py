@@ -47,5 +47,8 @@ class SfMPipeline:
                 if not key_ij in matches:
                     matches[key_ij] = self.match_features(features[i], features[j])
         
-    db = pycolmap.Database("data/colmap.db")
-    
+        db = pycolmap.Database(project_path / "colmap.db")
+
+def run_sfm(path: Path):
+    pipeline = SfMPipeline()
+    pipeline.run(path)
