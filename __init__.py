@@ -40,8 +40,7 @@ wp.init()
 #     path=Path("/home/luks/james/nerfs/nerf_synthetic/lego/transforms_train.json"),
 #     type=DatasetType.TRANSFORMS_JSON,
 # )
-# proj_path = Path("/home/luks/james/nerfs/balloondog/")
-proj_path = Path("/home/luks/james/nerfs/sum+viv/")
+proj_path = Path("/home/luks/james/nerfs/balloondog/")
 # proj_path = Path("/home/luks/james/nerfs/pipe-thingy-makawao/")
 test_render_frames_path = proj_path / "test_render_frames"
 test_render_frames_path.mkdir(exist_ok=True)
@@ -60,7 +59,7 @@ aabb_scale = max(aabb_size.x, aabb_size.y, aabb_size.z)
 aabb_scale = 8.0
 dataset.resize_and_center(aabb_scale=aabb_scale)
 
-model = WarpNeRFModel(aabb_scale=aabb_scale, n_appearance_embeddings=dataset.num_images)
+model = WarpNeRFModel(aabb_scale=2*aabb_scale, n_appearance_embeddings=dataset.num_images)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
 scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9995)
