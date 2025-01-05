@@ -1,6 +1,7 @@
 from pathlib import Path
 import tyro
 
+from warpnerf.server.warpnerf_server import run_warpnerf_server
 from warpnerf.utils.bundler_sfm import create_bundler_sfm_data_from_path
 from warpnerf.utils.reality_capture import run_reality_capture
 from warpnerf.utils.structure_from_motion import run_sfm
@@ -17,5 +18,6 @@ def main():
             "train": None,
             "open": open_bundler_file,
             "hellofvdb": hello_fvdb,
+            "serve": run_warpnerf_server,
         }
     )
