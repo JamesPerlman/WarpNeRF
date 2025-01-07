@@ -7,7 +7,7 @@ import torch
 from pathlib import Path
 
 from warpnerf.models.batch import create_ray_batch
-from warpnerf.models.camera import TrainingCamera
+from warpnerf.models.camera import CameraData, TrainingCamera
 from warpnerf.models.gridrf_model import GridRFModel
 from warpnerf.models.trimiprf_model import TrimipRFModel
 from warpnerf.models.dataset import Dataset, DatasetType
@@ -40,11 +40,12 @@ wp.init()
 #     path=Path("/home/luks/james/nerfs/nerf_synthetic/lego/transforms_train.json"),
 #     type=DatasetType.TRANSFORMS_JSON,
 # )
-proj_path = Path("/home/luks/james/nerfs/balloondog/")
+proj_path = Path("/home/luks/james/nerfs/jhex-malibu-2025-01-06/NeRF_0178")
 # proj_path = Path("/home/luks/james/nerfs/pipe-thingy-makawao/")
 test_render_frames_path = proj_path / "test_render_frames"
 test_render_frames_path.mkdir(exist_ok=True)
-target_cam_idx = 0
+cam_idx_a = 20
+cam_idx_b = 41
 dataset = Dataset(
     path=proj_path / "transforms.json",
     type=DatasetType.TRANSFORMS_JSON,
@@ -59,7 +60,7 @@ aabb_scale = max(aabb_size.x, aabb_size.y, aabb_size.z)
 aabb_scale = 8.0
 dataset.resize_and_center(aabb_scale=aabb_scale)
 
-model = WarpNeRFModel(aabb_scale=2*aabb_scale, n_appearance_embeddings=dataset.num_images)
+model = WarpNeRFModel(aabb_scale=aabb_scale, n_appearance_embeddings=dataset.num_images)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
 scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9995)
@@ -144,8 +145,8 @@ def server_render():
     rgb = np.array(rgb.reshape(w, h, 3).permute(1,0,2).detach().cpu().numpy(), dtype=np.float32)
     server.set_background_image(rgb)
 
-max_step = 10000
-n_frames = 900
+max_step = 9000
+n_frames = 300
 exp_frames = []
 for j in range(0, n_frames, 2):
     # exponential from 0 to 10,000
@@ -155,6 +156,25 @@ for j in range(0, n_frames, 2):
 
 exp_frames_set = set(exp_frames)
 frame_num = 0
+
+def interpolated_cam(cam_a: TrainingCamera, cam_b: TrainingCamera, t: float) -> TrainingCamera:
+    cam_data_a = cam_a.camera_data
+    cam_data_b = cam_b.camera_data
+    cam_data_c = CameraData()
+    cam_data_c.f = cam_data_a.f + t * (cam_data_b.f - cam_data_a.f)
+    cam_data_c.sx = cam_data_a.k1 + t * (cam_data_b.k1 - cam_data_a.k1)
+    cam_data_c.k2 = cam_data_a.k2 + t * (cam_data_b.k2 - cam_data_a.k2)
+    cam_data_c.p1 = cam_data_a.p1 + t * (cam_data_b.p1 - cam_data_a.p1)
+    cam_data_c.p2 = cam_data_a.p2 + t * (cam_data_b.p2 - cam_data_a.p2)
+    
+    quat_a = wp.quat_from_matrix(cam_data_a.R)
+    quat_b = wp.quat_from_matrix(cam_data_b.R)
+    quat_c = wp.quat_slerp(quat_a, quat_b, t)
+    cam_data_c.R = wp.quat_to_matrix(quat_c)
+    cam_data_c.t = cam_data_a.t + t * (cam_data_b.t - cam_data_a.t)
+    
+    return TrainingCamera(cam_data_c, cam_a.image_path, cam_a.image_dims)
+
 for i in range(max_step + 1):
     trainer.step()
     scheduler.step()
@@ -162,8 +182,15 @@ for i in range(max_step + 1):
     if i % 100 == 0 and i > 0:
         server_render()
 
-    if i in exp_frames_set:
-        save_img(model, dataset.training_cameras[target_cam_idx], frame_num)
+    if i % (max_step // n_frames) == 0:
+        cam = interpolated_cam(dataset.training_cameras[cam_idx_a], dataset.training_cameras[cam_idx_b], i / max_step)
+        cam.image_dims = (1024, 1024)
+        cam.camera_data.sx = 1024
+        cam.camera_data.sy = 1024
+        cam.camera_data.cx = 512
+        cam.camera_data.cy = 512
+        cam.camera_data.f = 400
+        save_img(model, cam, frame_num)
         frame_num += 1
 
 wp.synchronize()

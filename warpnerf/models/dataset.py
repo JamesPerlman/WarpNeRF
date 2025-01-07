@@ -117,6 +117,15 @@ class Dataset:
         return get_scene_bounding_box(self.training_cameras)
     
     @property
+    def aabb_scale(self) -> float:
+        assert self.is_loaded, "Dataset not loaded"
+
+        bbox = self.scene_bounding_box
+        aabb_size = bbox.max - bbox.min
+        
+        return max(aabb_size.x, aabb_size.y, aabb_size.z)
+
+    @property
     def scene_center(self) -> wp.vec3f:
         assert self.is_loaded, "Dataset not loaded"
         
@@ -147,8 +156,9 @@ class Dataset:
                 json_data = json.load(f)
             
             frames = json_data["frames"]
+            frames = sorted(frames, key=lambda f: f["file_path"])
             self.image_paths = [self.path.parent / f["file_path"] for f in frames]
-            self.image_paths = [p.parent.parent / "images" / p.name for p in self.image_paths]
+            self.image_paths = [p.parent.parent / "images_2" / p.name for p in self.image_paths]
 
             img_w, img_h = get_image_dims(self.image_paths[0])
             cam_w = json_data.get("w", img_w)
@@ -213,7 +223,6 @@ class Dataset:
             camera.camera_data.sy *= scale
             camera.camera_data.cx *= scale
             camera.camera_data.cy *= scale
-
 
     def get_batch(self, n_rays: int, random_seed: wp.int32, device: str = "cuda") -> tuple[RayBatch, wp.array(dtype=wp.vec4f)]:
         assert self.is_loaded, "Dataset not loaded"

@@ -147,7 +147,7 @@ def get_rays_for_camera_kernel(
     i = idx + offset
     px = wp.float32(i // img_h)
     py = wp.float32(i % img_h)
-    ray = get_global_ray_at_pixel_xy(camera, img_w, img_h, px, py)
+    ray = get_global_ray_at_pixel_xy(camera, img_w, img_h, px, py, near=1.0)
 
     rays_out.ori[idx] = ray.ori
     rays_out.dir[idx] = ray.dir

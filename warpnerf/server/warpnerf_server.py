@@ -1,7 +1,13 @@
 import asyncio
+from pathlib import Path
 import msgpack
+import torch
 import websockets
 from typing import Callable, Type
+
+from warpnerf.models.dataset import Dataset, DatasetType
+from warpnerf.models.warpnerf_model import WarpNeRFModel
+from warpnerf.training.trainer import Trainer
 
 class WarpNeRFServer:
     def __init__(self, host="localhost", port=8765):
@@ -10,6 +16,18 @@ class WarpNeRFServer:
         self.handlers = {}
         self.queue = asyncio.Queue()  # Single queue for all requests
         self.connections = set()  # Initialize connections set
+
+        # Single NeRF for now, needs to be revised to allow multiple NeRFs
+        self.dataset = None
+        self.model = None
+        self.optimizer = None
+        self.scheduler = None
+        self.trainer: Trainer = None
+        self.is_training = False
+        self.training_step = 0
+
+        # Register message handlers
+        self.register_handlers()
 
     def recv(self, topic: str, payload_type: Type):
         """Decorator to register a handler for a specific topic."""
@@ -37,7 +55,7 @@ class WarpNeRFServer:
                 to_remove.add(websocket)
         self.connections -= to_remove
 
-    async def handler(self, websocket, path):
+    async def websocket_handler(self, websocket, path):
         print(f"Connection established: {path}")
         self.connections.add(websocket)
         try:
@@ -63,24 +81,49 @@ class WarpNeRFServer:
     async def process_queue(self):
         """Process messages from the queue serially."""
         while True:
-            topic, payload = await self.queue.get()
-            if topic in self.handlers:
-                await self.handlers[topic](payload)
-            else:
-                print(f"No handler registered for topic: {topic}")
+            # handle a training step
+            if self.is_training:
+                self.trainer.step()
+                self.scheduler.step()
+                self.training_step += 1
+            
+            # process messages from the queue
+            if not self.queue.empty():
+                topic, payload = await self.queue.get()
+                if topic in self.handlers:
+                    await self.handlers[topic](payload)
+                else:
+                    print(f"No handler registered for topic: {topic}")
+
+    def register_handlers(self):
+        """Register all message handlers."""
+
+        @self.recv("load_dataset", dict)
+        async def on_load_dataset(payload):
+            print(f"Received payload: {payload}")
+            dataset_path = Path(payload["path"])
+            self.dataset = Dataset(path=dataset_path, type=DatasetType.TRANSFORMS_JSON)
+            self.dataset.load()
+            self.dataset.resize_and_center(aabb_scale=8.0)
+            self.model = WarpNeRFModel(
+                aabb_scale=self.dataset.aabb_scale * 2,
+                n_appearance_embeddings=self.dataset.num_images
+            )
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-2)
+            self.scheduler = torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=0.9995)
+            self.trainer = Trainer(
+                dataset=self.dataset,
+                model=self.model,
+                optimizer=self.optimizer
+            )
+            self.is_training = True
+            self.training_step = 0
 
     async def start(self):
         print(f"Starting WarpNeRF server at {self.host}:{self.port}")
-        await websockets.serve(self.handler, self.host, self.port)
+        await websockets.serve(self.websocket_handler, self.host, self.port)
+        await self.process_queue()
 
 def run_warpnerf_server():
     server = WarpNeRFServer()
-
-    @server.recv("load_dataset", dict)
-    async def on_load_dataset(payload):
-        print(f"Received payload: {payload}")
-        await server.send("some_response", {"topic": "some_response", "payload": "test"})
-
-    server.start()
-
-    print("hello")
+    asyncio.run(server.start())
