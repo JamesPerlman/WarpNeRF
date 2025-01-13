@@ -10,7 +10,7 @@ from warpnerf.models.warpnerf_model import WarpNeRFModel
 from warpnerf.training.trainer import Trainer
 
 class WarpNeRFServer:
-    def __init__(self, host="localhost", port=8765):
+    def __init__(self, host="0.0.0.0", port=8765):
         self.host = host
         self.port = port
         self.handlers = {}
@@ -81,19 +81,17 @@ class WarpNeRFServer:
     async def process_queue(self):
         """Process messages from the queue serially."""
         while True:
-            # handle a training step
-            if self.is_training:
-                self.trainer.step()
-                self.scheduler.step()
-                self.training_step += 1
-            
-            # process messages from the queue
-            if not self.queue.empty():
-                topic, payload = await self.queue.get()
+            # Always await for the next task in the queue
+            topic, payload = await self.queue.get()
+            try:
                 if topic in self.handlers:
                     await self.handlers[topic](payload)
                 else:
                     print(f"No handler registered for topic: {topic}")
+            except Exception as e:
+                print(f"Error processing topic {topic}: {e}")
+            finally:
+                self.queue.task_done()
 
     def register_handlers(self):
         """Register all message handlers."""
@@ -121,8 +119,11 @@ class WarpNeRFServer:
 
     async def start(self):
         print(f"Starting WarpNeRF server at {self.host}:{self.port}")
-        await websockets.serve(self.websocket_handler, self.host, self.port)
-        await self.process_queue()
+        await asyncio.gather(
+            websockets.serve(self.websocket_handler, self.host, self.port),
+            self.process_queue()
+        )
+
 
 def run_warpnerf_server():
     server = WarpNeRFServer()
