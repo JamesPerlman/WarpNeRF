@@ -1,6 +1,7 @@
 import asyncio
 from pathlib import Path
 import msgpack
+import numpy as np
 import torch
 import websockets
 from typing import Callable, Type
@@ -78,7 +79,7 @@ class WarpNeRFServer:
         finally:
             self.connections.remove(websocket)
 
-    async def process_queue(self):
+    async def process_websocket_queue(self):
         """Process messages from the queue serially."""
         while True:
             # Always await for the next task in the queue
@@ -92,6 +93,17 @@ class WarpNeRFServer:
                 print(f"Error processing topic {topic}: {e}")
             finally:
                 self.queue.task_done()
+
+    async def async_runloop(self):
+        while True:
+            if self.is_training:
+                self.trainer.step()
+                self.scheduler.step()
+                self.training_step += 1
+                print(f"Training step: {self.training_step}")
+                await self.send("training_step", {"step": self.training_step})
+            else:
+                await asyncio.sleep(1.0)
 
     def register_handlers(self):
         """Register all message handlers."""
@@ -116,12 +128,28 @@ class WarpNeRFServer:
             )
             self.is_training = True
             self.training_step = 0
+            rf_data = {
+                "id": 0,
+                "rf_type": "warpnerf",
+                "bbox_size": self.dataset.aabb_scale,
+                "transform": np.eye(4).tolist(),
+                "is_trainable": True,
+                "is_training_enabled": True,
+                "limit_training": False,
+                "n_steps_max": 10000,
+                "n_steps_trained": 0,
+                "n_images_loaded": self.dataset.num_images,
+                "n_images_total": self.dataset.num_images,
+            }
+            await self.send("add_radiance_field", rf_data)
+            print(f"Adding radiance field", rf_data)
 
     async def start(self):
         print(f"Starting WarpNeRF server at {self.host}:{self.port}")
         await asyncio.gather(
             websockets.serve(self.websocket_handler, self.host, self.port),
-            self.process_queue()
+            self.process_websocket_queue(),
+            self.async_runloop()
         )
 
 
