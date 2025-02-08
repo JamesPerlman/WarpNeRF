@@ -3,6 +3,7 @@ import warp as wp
 
 from pathlib import Path
 from warpnerf.models.bounding_box import BoundingBox, create_bounding_box
+from warpnerf.server.objects.perspective_camera import PerspectiveCamera
 from warpnerf.utils.bundler_sfm import BundlerSFMCameraData
 from warpnerf.utils.image import get_image_dims, load_image
 from warpnerf.utils.math import vec3f_cwise_max, vec3f_cwise_min
@@ -40,6 +41,18 @@ def create_camera_data_from_bundler(data: BundlerSFMCameraData, image_dims: tupl
     cam.sy = wp.float32(image_dims[1])
     return cam
 
+def create_camera_data_from_perspective_camera(pcam: PerspectiveCamera) -> CameraData:
+    cam = CameraData()
+    cam.f = pcam.focal_length
+    cam.k1 = 0.0
+    cam.k2 = 0.0
+    cam.p1 = 0.0
+    cam.p2 = 0.0
+    cam.R = wp.transpose(wp.mat33f(pcam.rotation_matrix))
+    cam.t = wp.vec3f(pcam.translation_vector)
+    cam.sx, cam.sy = pcam.image_dims
+    return cam
+
 class TrainingCamera:
 
     camera_data: CameraData
@@ -52,8 +65,7 @@ class TrainingCamera:
         self.image_dims = image_dims
 
     def get_image(self) -> wp.array3d(dtype=wp.uint8):
-        return  load_image(self.image_path)
-
+        return load_image(self.image_path)
 
 def get_scene_bounding_box(cameras: TrainingCamera) -> BoundingBox:
     min = wp.vec3f([np.inf, np.inf, np.inf])
