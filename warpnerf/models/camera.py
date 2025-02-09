@@ -48,7 +48,7 @@ def create_camera_data_from_perspective_camera(pcam: PerspectiveCamera) -> Camer
     cam.k2 = 0.0
     cam.p1 = 0.0
     cam.p2 = 0.0
-    cam.R = wp.transpose(wp.mat33f(pcam.rotation_matrix))
+    cam.R = wp.mat33f(pcam.rotation_matrix)
     cam.t = wp.vec3f(pcam.translation_vector)
     cam.sx, cam.sy = pcam.image_dims
     return cam
