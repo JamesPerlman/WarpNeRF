@@ -8,8 +8,6 @@ from pathlib import Path
 
 from warpnerf.models.batch import create_ray_batch
 from warpnerf.models.camera import CameraData, TrainingCamera
-from warpnerf.models.gridrf_model import GridRFModel
-from warpnerf.models.trimiprf_model import TrimipRFModel
 from warpnerf.models.dataset import Dataset, DatasetType
 from warpnerf.models.warpnerf_model import WarpNeRFModel
 from warpnerf.rendering.nerf_renderer import generate_samples, render_samples, query_samples
@@ -40,12 +38,12 @@ wp.init()
 #     path=Path("/home/luks/james/nerfs/nerf_synthetic/lego/transforms_train.json"),
 #     type=DatasetType.TRANSFORMS_JSON,
 # )
-proj_path = Path("/home/luks/james/nerfs/jhex-malibu-2025-01-06/NeRF_0178")
+# 0179-0184
+proj_path = Path("/home/luks/james/nerfs/summertarget/NeRF_0180")
 # proj_path = Path("/home/luks/james/nerfs/pipe-thingy-makawao/")
 test_render_frames_path = proj_path / "test_render_frames"
 test_render_frames_path.mkdir(exist_ok=True)
-cam_idx_a = 20
-cam_idx_b = 41
+
 dataset = Dataset(
     path=proj_path / "transforms.json",
     type=DatasetType.TRANSFORMS_JSON,
@@ -55,6 +53,13 @@ dataset = Dataset(
 #     type=DatasetType.TRANSFORMS_JSON,
 # )
 dataset.load()
+
+
+num_cams = dataset.num_cameras
+
+cam_idx_a = num_cams // 5
+cam_idx_b = 4 * num_cams // 5
+
 aabb_size = dataset.scene_bounding_box.max - dataset.scene_bounding_box.min
 aabb_scale = max(aabb_size.x, aabb_size.y, aabb_size.z)
 aabb_scale = 8.0
@@ -192,7 +197,6 @@ for i in range(max_step + 1):
         cam.camera_data.f = 400
         save_img(model, cam, frame_num)
         frame_num += 1
-
 wp.synchronize()
 
 while True:
